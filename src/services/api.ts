@@ -76,7 +76,8 @@ export function setActivePersona(persona: UserPersona): void {
 }
 
 const API_BASE = "/api";
-const DIRECT_API_BASE = "http://127.0.0.1:8000/api";
+const DIRECT_API_BASE =
+  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
 
 async function request<T>(
   endpoint: string,
