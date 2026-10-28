@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: verity_postgres
+    environment:
+      POSTGRES_USER: verity
+      POSTGRES_PASSWORD: veritypassword
+      POSTGRES_DB: veritybrand
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U verity -d veritybrand"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: verity_redis
+    ports:
+      - "6380:6379"
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: verity_api
+    environment:
+      DATABASE_URL: postgresql://verity:veritypassword@db:5432/veritybrand
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: veritybrand-production-secret-key-2026
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./backend:/app/backend
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: verity_web
+    environment:
+      NEXT_PUBLIC_API_URL: http://api:8000/api
+    ports:
+      - "3001:3001"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
