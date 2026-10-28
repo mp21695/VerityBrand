@@ -1,0 +1,2920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VerityBrand — Every Claim Grounded</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap"
+    rel="stylesheet"
+  />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.143.0/build/three.module.js",
+      "three/examples/jsm/": "https://unpkg.com/three@0.143.0/examples/jsm/"
+    }
+  }
+  </script>
+  <style>
+    :root {
+      --bg: #192839;
+      --bg-2: #192839;
+      --ink: #FFFFFF;
+      --muted: #B4CDFD;
+      --muted-2: rgba(180, 205, 253, 0.65);
+
+      --line: rgba(180, 205, 253, .18);
+      --line-strong: rgba(180, 205, 253, .34);
+
+      --accent: #3395FF;
+      --accent-2: #528FF0;
+      --accent-ink: #FFFFFF;
+
+      --warning: #528FF0;
+      --critical: #3395FF;
+
+      --glass: rgba(25, 40, 57, .74);
+      --glass-2: rgba(25, 40, 57, .88);
+
+      --radius: 18px;
+      --radius-lg: 26px;
+      --maxw: 1180px;
+
+      --shadow: 0 30px 80px -30px rgba(0, 0, 0, .65);
+
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --font-display: 'Playfair Display', Georgia, serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: var(--font);
+      color: var(--ink);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      overflow-x: hidden;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    /* Lenis */
+    html.lenis,
+    html.lenis body {
+      height: auto;
+    }
+
+    .lenis.lenis-smooth {
+      scroll-behavior: auto !important;
+    }
+
+    .lenis.lenis-smooth [data-lenis-prevent] {
+      overscroll-behavior: contain;
+    }
+
+    .lenis.lenis-stopped {
+      overflow: hidden;
+    }
+
+    /* staggered scroll reveal */
+    [data-reveal] {
+      opacity: 0;
+      transform: translateY(26px);
+      transition:
+        opacity .7s cubic-bezier(.22, .7, .2, 1),
+        transform .7s cubic-bezier(.22, .7, .2, 1);
+      transition-delay: var(--rd, 0ms);
+      will-change: opacity, transform;
+    }
+
+    [data-reveal].in {
+      opacity: 1;
+      transform: none;
+    }
+
+    /*
+    IMPORTANT:
+    This is NOT a planet canvas.
+    It is the persistent Evidence Field behind the entire site.
+    */
+    .evidence-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+    }
+
+    .section {
+      position: relative;
+      z-index: 1;
+      max-width: var(--maxw);
+      margin: 0 auto;
+      padding: clamp(80px, 12vw, 160px) 24px;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 18px;
+    }
+
+    .section-head {
+      max-width: 680px;
+      margin: 0 auto clamp(48px, 6vw, 80px);
+      text-align: center;
+    }
+
+    .section-head h2,
+    .showcase-copy h2,
+    .cta-card h2 {
+      font-family: var(--font-display);
+      font-size: clamp(34px, 4.6vw, 56px);
+      font-weight: 500;
+      line-height: 1.05;
+      letter-spacing: -.025em;
+      text-shadow: 0 2px 40px rgba(0, 0, 0, .6);
+    }
+
+    .section-head p {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.65;
+      text-shadow: 0 1px 24px rgba(0, 0, 0, .55);
+    }
+
+    /* buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 13px 22px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition:
+        transform .18s ease,
+        box-shadow .25s ease,
+        background .2s ease,
+        border-color .2s ease;
+      white-space: nowrap;
+      font-family: var(--font);
+    }
+
+    .btn-primary {
+      color: var(--accent-ink);
+      background: linear-gradient(180deg, var(--accent), var(--accent-2));
+      box-shadow:
+        0 10px 30px -8px rgba(24, 214, 160, .4),
+        inset 0 1px 0 rgba(255, 255, 255, .4);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 38px -8px rgba(24, 214, 160, .55);
+    }
+
+    .btn-outline {
+      color: var(--ink);
+      background: rgba(255, 255, 255, .035);
+      border-color: var(--line-strong);
+      backdrop-filter: blur(10px);
+    }
+
+    .btn-outline:hover {
+      background: rgba(255, 255, 255, .07);
+      transform: translateY(-2px);
+    }
+
+    .btn-ghost {
+      color: var(--ink);
+      background: rgba(255, 255, 255, .035);
+      border-color: var(--line-strong);
+      padding: 9px 18px;
+    }
+
+    .btn-ghost:hover {
+      background: rgba(255, 255, 255, .07);
+    }
+
+    /* glass panels */
+    .card,
+    .dashboard,
+    .stat,
+    .cta-card,
+    .verification-record,
+    .ws-shell {
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+
+    /* ================= SECTION 1 · HERO ================= */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      background: radial-gradient(
+        125% 62% at 50% -10%,
+        rgba(5, 8, 7, .88) 0%,
+        rgba(5, 8, 7, .35) 44%,
+        transparent 68%
+      );
+    }
+
+    .nav {
+      width: 100%;
+      max-width: var(--maxw);
+      margin: 0 auto;
+      padding: 22px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      z-index: 10;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .nav-logo-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: rgba(24, 214, 160, 0.12);
+      border: 1px solid rgba(24, 214, 160, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent);
+      box-shadow: 0 0 18px rgba(24, 214, 160, 0.25);
+    }
+
+    .nav-wordmark {
+      font-family: var(--font-display);
+      font-size: 21px;
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+    }
+
+    .nav-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 30px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .nav-links a:hover,
+    .nav-links button:hover {
+      color: var(--ink);
+    }
+
+    .nav-links button {
+      background: none;
+      border: none;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .nav-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(8, 18, 15, 0.55);
+    }
+
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--accent);
+      animation: statusPulse 2.4s ease-in-out infinite;
+    }
+
+    @keyframes statusPulse {
+      0%, 100% { opacity: 0.4; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.15); }
+    }
+
+    .hero-inner {
+      width: 100%;
+      max-width: var(--maxw);
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      flex: 1;
+      align-items: center;
+      justify-content: flex-start;
+      text-align: left;
+      transform: translateY(-6vh);
+    }
+
+    .hero-copy {
+      max-width: 660px;
+    }
+
+    .dataset-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 14px;
+      border-radius: 999px;
+      background: var(--glass);
+      border: 1px solid var(--line-strong);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      margin-bottom: 26px;
+      backdrop-filter: blur(12px);
+    }
+
+    .dataset-pill-tag {
+      color: var(--accent);
+      font-weight: 600;
+      letter-spacing: 0.14em;
+    }
+
+    .dataset-pill-sep {
+      color: var(--muted-2);
+    }
+
+    .dataset-pill-path {
+      color: var(--ink);
+    }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: clamp(46px, 6.5vw, 86px);
+      font-weight: 500;
+      line-height: .98;
+      letter-spacing: -.045em;
+      color: var(--ink);
+      text-shadow: 0 10px 50px rgba(0, 0, 0, 0.8);
+    }
+
+    .hero-title .accent-word {
+      color: var(--accent);
+      font-style: italic;
+      font-weight: 400;
+    }
+
+    .hero-sub {
+      margin-top: 26px;
+      max-width: 580px;
+      font-size: clamp(16px, 1.4vw, 19px);
+      line-height: 1.65;
+      color: var(--muted);
+      text-shadow: 0 2px 24px rgba(0, 0, 0, 0.85);
+    }
+
+    .hero-actions {
+      margin-top: 34px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .hero-foot {
+      width: 100%;
+      max-width: var(--maxw);
+      margin: 0 auto;
+      padding: 24px 24px 34px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      border-top: 1px solid rgba(120, 190, 165, 0.08);
+    }
+
+    .hero-telemetry {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .hero-telemetry strong {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .hero-live-Readout {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(8, 18, 15, 0.65);
+      border: 1px solid var(--line);
+      padding: 6px 12px;
+      border-radius: 999px;
+    }
+
+    /* ================= SECTION 2 · GOVERNANCE CAPABILITIES ================= */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 22px;
+    }
+
+    .card {
+      background: var(--glass);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+      transition:
+        transform .28s cubic-bezier(.22, .7, .2, 1),
+        border-color .28s ease,
+        background .28s ease;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(
+        420px circle at 85% 10%,
+        rgba(24, 214, 160, 0.09),
+        transparent 65%
+      );
+      opacity: 0;
+      transition: opacity .35s ease;
+      pointer-events: none;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: var(--line-strong);
+      background: var(--glass-2);
+    }
+
+    .card:hover::before {
+      opacity: 1;
+    }
+
+    .card-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: rgba(24, 214, 160, 0.1);
+      border: 1px solid rgba(24, 214, 160, 0.28);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent);
+      margin-bottom: 22px;
+    }
+
+    .card-meta {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted-2);
+      margin-bottom: 8px;
+    }
+
+    .card h3 {
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 500;
+      letter-spacing: -0.015em;
+      color: var(--ink);
+      margin-bottom: 12px;
+    }
+
+    .card p {
+      font-size: 15px;
+      line-height: 1.65;
+      color: var(--muted);
+    }
+
+    /* ================= SECTION 3 · VERIFICATION SHOWCASE + STATS ================= */
+    .showcase-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.08fr;
+      gap: clamp(36px, 5vw, 68px);
+      align-items: center;
+    }
+
+    .showcase-copy p {
+      margin-top: 20px;
+      font-size: 18px;
+      line-height: 1.68;
+      color: var(--muted);
+      max-width: 490px;
+    }
+
+    .showcase-copy .btn {
+      margin-top: 32px;
+    }
+
+    .verification-record {
+      background: var(--glass-2);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .record-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 22px;
+    }
+
+    .record-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    .record-badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(239, 63, 121, 0.14);
+      border: 1px solid rgba(239, 63, 121, 0.4);
+      color: var(--critical);
+    }
+
+    .record-claim-box {
+      background: rgba(5, 8, 7, 0.65);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-bottom: 22px;
+    }
+
+    .record-claim-caption {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted-2);
+      margin-bottom: 6px;
+    }
+
+    .record-claim-quote {
+      font-family: var(--font-display);
+      font-size: 26px;
+      font-style: italic;
+      color: var(--ink);
+    }
+
+    .record-body-layout {
+      display: grid;
+      grid-template-columns: 1.25fr 0.75fr;
+      gap: 20px;
+      align-items: stretch;
+    }
+
+    .record-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .record-row {
+      background: rgba(5, 8, 7, 0.48);
+      border: 1px solid rgba(120, 190, 165, 0.1);
+      border-radius: 12px;
+      padding: 12px 15px;
+      transition: border-color 0.35s ease, background 0.35s ease;
+    }
+
+    .record-row.active-trace {
+      border-color: var(--accent);
+      background: rgba(24, 214, 160, 0.08);
+    }
+
+    .record-row-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-2);
+      margin-bottom: 4px;
+    }
+
+    .record-row-top .code-id {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .record-row-top .code-warn {
+      color: var(--warning);
+      font-weight: 600;
+    }
+
+    .record-row-top .code-crit {
+      color: var(--critical);
+      font-weight: 600;
+    }
+
+    .record-row-val {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    /* Connected vertical trail inside record */
+    .record-trail-panel {
+      background: rgba(5, 8, 7, 0.6);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    .trail-spine-line {
+      position: absolute;
+      left: 23px;
+      top: 26px;
+      bottom: 26px;
+      width: 1px;
+      background: rgba(120, 190, 165, 0.16);
+      overflow: hidden;
+    }
+
+    .trail-spine-progress {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, var(--accent), var(--critical));
+      transform-origin: top;
+      animation: trailProgressAnim 6s cubic-bezier(.4, 0, .2, 1) infinite;
+    }
+
+    @keyframes trailProgressAnim {
+      0% { transform: scaleY(0.08); opacity: 0.7; }
+      75% { transform: scaleY(1); opacity: 1; }
+      100% { transform: scaleY(1); opacity: 0.35; }
+    }
+
+    .trail-step {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      transition: color 0.3s ease;
+    }
+
+    .trail-step.active {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .trail-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--bg-2);
+      border: 1.5px solid var(--muted-2);
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+    }
+
+    .trail-step.active .trail-dot {
+      background: var(--accent);
+      border-color: var(--accent);
+      box-shadow: 0 0 12px var(--accent);
+    }
+
+    /* Stats Row Below Showcase */
+    .stats-grid {
+      margin-top: clamp(56px, 7vw, 92px);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+
+    .stat {
+      background: var(--glass);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      text-align: left;
+    }
+
+    .stat-num {
+      font-family: var(--font-display);
+      font-size: clamp(38px, 4.2vw, 54px);
+      font-weight: 500;
+      line-height: 1;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, #ffffff 20%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 10px;
+    }
+
+    .stat-label {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .stat-sub {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted-2);
+      margin-top: 4px;
+    }
+
+    /* ================= SECTION 4 · CTA + FOOTER ================= */
+    .cta-card {
+      background: linear-gradient(
+        180deg,
+        rgba(11, 26, 21, 0.72) 0%,
+        rgba(6, 14, 11, 0.85) 100%
+      );
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-lg);
+      padding: clamp(52px, 7vw, 88px) 32px;
+      text-align: center;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-card p {
+      max-width: 560px;
+      margin: 18px auto 0;
+      font-size: 18px;
+      line-height: 1.65;
+      color: var(--muted);
+    }
+
+    .cta-actions {
+      margin-top: 34px;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .footer {
+      max-width: var(--maxw);
+      margin: 0 auto;
+      padding: 56px 24px 48px;
+      border-top: 1px solid var(--line);
+    }
+
+    .footer-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 48px;
+      flex-wrap: wrap;
+      margin-bottom: 44px;
+    }
+
+    .footer-brand h4 {
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 500;
+      color: var(--ink);
+    }
+
+    .footer-brand p {
+      margin-top: 8px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .footer-cols {
+      display: flex;
+      gap: 56px;
+      flex-wrap: wrap;
+    }
+
+    .footer-col h5 {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 14px;
+    }
+
+    .footer-col ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .footer-col a,
+    .footer-col button {
+      font-size: 14px;
+      color: var(--muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-align: left;
+      font-family: inherit;
+      padding: 0;
+    }
+
+    .footer-col a:hover,
+    .footer-col button:hover {
+      color: var(--ink);
+    }
+
+    .footer-bottom {
+      padding-top: 26px;
+      border-top: 1px solid rgba(120, 190, 165, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 13px;
+      color: var(--muted-2);
+    }
+
+    /* ================= FUNCTIONAL REVIEW WORKSPACE OVERLAY ================= */
+    .workspace-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(5, 8, 7, 0.86);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s cubic-bezier(.22, .7, .2, 1);
+    }
+
+    .workspace-modal.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .ws-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(5, 8, 7, 0.92);
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .ws-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .ws-breadcrumb strong {
+      color: var(--ink);
+    }
+
+    .ws-status-pill {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(239, 63, 121, 0.45);
+      background: rgba(239, 63, 121, 0.14);
+      color: var(--critical);
+    }
+
+    .ws-status-pill.unlocked {
+      border-color: rgba(24, 214, 160, 0.5);
+      background: rgba(24, 214, 160, 0.14);
+      color: var(--accent);
+    }
+
+    .ws-body {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 220px 1fr 410px;
+      overflow: hidden;
+    }
+
+    /* Workspace Left Sidebar */
+    .ws-sidebar {
+      border-right: 1px solid var(--line);
+      background: rgba(5, 8, 7, 0.75);
+      padding: 20px 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .ws-nav-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .ws-nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      background: transparent;
+      border: 1px solid transparent;
+      cursor: pointer;
+      text-align: left;
+      font-family: var(--font);
+    }
+
+    .ws-nav-item:hover {
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .ws-nav-item.active {
+      color: var(--accent);
+      background: rgba(24, 214, 160, 0.1);
+      border-color: rgba(24, 214, 160, 0.3);
+    }
+
+    .ws-nav-count {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--ink);
+    }
+
+    /* Workspace Main Draft Center */
+    .ws-main {
+      padding: 28px 32px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .ws-draft-box {
+      background: var(--glass);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      padding: 28px;
+    }
+
+    .ws-draft-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted-2);
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 20px;
+    }
+
+    .ws-draft-passage {
+      font-family: var(--font-display);
+      font-size: clamp(22px, 2.3vw, 31px);
+      line-height: 1.62;
+      color: var(--ink);
+    }
+
+    .hl-span {
+      padding: 2px 7px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      border-bottom: 2px solid transparent;
+    }
+
+    .hl-crit {
+      background: rgba(239, 63, 121, 0.18);
+      border-bottom-color: var(--critical);
+      color: #ffd9e6;
+    }
+
+    .hl-warn {
+      background: rgba(214, 173, 80, 0.18);
+      border-bottom-color: var(--warning);
+      color: #faecc8;
+    }
+
+    .hl-verify {
+      background: rgba(24, 214, 160, 0.15);
+      border-bottom-color: var(--accent);
+      color: #c8f9ea;
+    }
+
+    .hl-tone {
+      background: rgba(255, 255, 255, 0.08);
+      border-bottom-color: var(--muted);
+      color: var(--ink);
+    }
+
+    .hl-resolved {
+      background: rgba(24, 214, 160, 0.2);
+      border-bottom-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Intent-Preserving Fix Diff Box */
+    .ws-diff-box {
+      background: var(--glass);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+    }
+
+    .ws-diff-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .ws-toggle-group {
+      display: inline-flex;
+      background: rgba(5, 8, 7, 0.8);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 3px;
+    }
+
+    .ws-toggle-btn {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .ws-toggle-btn.active {
+      background: var(--accent);
+      color: var(--accent-ink);
+      font-weight: 600;
+    }
+
+    .ws-diff-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .ws-diff-pane {
+      background: rgba(5, 8, 7, 0.65);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .ws-diff-pane.suggested {
+      border-color: rgba(24, 214, 160, 0.35);
+      background: rgba(24, 214, 160, 0.05);
+    }
+
+    .ws-diff-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    /* Workspace Right Findings Column */
+    .ws-findings-panel {
+      border-left: 1px solid var(--line);
+      background: rgba(7, 16, 13, 0.78);
+      padding: 22px 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .ws-finding-card {
+      background: rgba(5, 8, 7, 0.72);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      transition: border-color 0.25s ease;
+    }
+
+    .ws-finding-card.resolved {
+      border-color: rgba(24, 214, 160, 0.4);
+      background: rgba(24, 214, 160, 0.05);
+    }
+
+    .ws-fc-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .ws-fc-claim {
+      font-family: var(--font-display);
+      font-size: 19px;
+      color: var(--ink);
+      margin-bottom: 8px;
+    }
+
+    .ws-fc-meta {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.55;
+      margin-bottom: 12px;
+    }
+
+    .ws-fc-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .ws-act-btn {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--line-strong);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--ink);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .ws-act-btn.accept {
+      border-color: rgba(24, 214, 160, 0.45);
+      background: rgba(24, 214, 160, 0.12);
+      color: var(--accent);
+    }
+
+    .ws-act-btn.accept:hover {
+      background: var(--accent);
+      color: var(--accent-ink);
+    }
+
+    .ws-act-btn:hover {
+      border-color: var(--accent);
+    }
+
+    /* Workspace Bottom Human Authority Lock Bar */
+    .ws-Lockbar {
+      padding: 14px 24px;
+      border-top: 1px solid var(--line);
+      background: rgba(5, 8, 7, 0.95);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .ws-progress-wrap {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .ws-progress-track {
+      width: 160px;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+
+    .ws-progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.4s cubic-bezier(.22, .7, .2, 1);
+    }
+
+    .btn-approve-lock {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 11px 20px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--muted-2);
+      cursor: not-allowed;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.3s ease;
+    }
+
+    .btn-approve-lock.unlocked {
+      cursor: pointer;
+      color: var(--accent-ink);
+      background: linear-gradient(180deg, var(--accent), var(--accent-2));
+      border-color: transparent;
+      box-shadow: 0 10px 30px -6px rgba(24, 214, 160, 0.5);
+    }
+
+    /* ================= RESPONSIVE MEDIA QUERIES ================= */
+    @media (max-width: 980px) {
+      .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .showcase-grid {
+        grid-template-columns: 1fr;
+      }
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .ws-body {
+        grid-template-columns: 1fr;
+        overflow-y: auto;
+      }
+      .ws-sidebar {
+        display: none;
+      }
+      .ws-findings-panel {
+        border-left: none;
+        border-top: 1px solid var(--line);
+      }
+    }
+
+    @media (max-width: 720px) {
+      .nav-links {
+        display: none;
+      }
+      .nav {
+        padding: 18px 20px;
+      }
+      .section {
+        padding: clamp(64px, 16vw, 110px) 20px;
+      }
+      .record-body-layout {
+        grid-template-columns: 1fr;
+      }
+      .ws-diff-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+      .hero-actions .btn {
+        width: 100%;
+      }
+      .cta-card {
+        padding: 40px 22px;
+      }
+      .footer-top {
+        flex-direction: column;
+        gap: 32px;
+      }
+      .footer-cols {
+        flex-direction: column;
+        gap: 28px;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      [data-reveal] {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+      }
+      html {
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- PERSISTENT FULL-VIEWPORT WEBGL EVIDENCE FIELD -->
+  <canvas class="evidence-canvas"></canvas>
+
+  <div class="page" id="top">
+    <!-- ================= SECTION 1 · HERO ================= -->
+    <header class="hero">
+      <nav class="nav">
+        <div class="nav-brand">
+          <div class="nav-logo-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              <path d="m9 12 2 2 4-4" />
+            </svg>
+          </div>
+          <span class="nav-wordmark">VerityBrand</span>
+          <span class="nav-tag">ROUND 2 MVP</span>
+        </div>
+
+        <div class="nav-links">
+          <a href="#features">Architecture</a>
+          <a href="#solutions">5-Step Pipeline</a>
+          <a href="#cta">Why VerityBrand</a>
+          <button type="button" data-open-workspace>Spec &amp; Data Model</button>
+        </div>
+
+        <div class="nav-right">
+          <div class="nav-status">
+            <span class="pulse-dot"></span>
+            <span id="navVerifiedReadout">412 claims_verified</span>
+          </div>
+          <button type="button" class="btn btn-ghost" data-open-workspace>
+            Launch Workspace →
+          </button>
+        </div>
+      </nav>
+
+      <div class="hero-inner">
+        <div class="hero-copy">
+          <div class="dataset-pill" data-reveal style="--rd: 0ms">
+            <span class="dataset-pill-tag">LIVE DEMO DATASET</span>
+            <span class="dataset-pill-sep">·</span>
+            <span class="dataset-pill-path">Arthaa Finserv / Q4 Campaign / v2</span>
+          </div>
+
+          <h1 class="hero-title" data-reveal style="--rd: 60ms">
+            Every claim<br />
+            <span class="accent-word">grounded.</span><br />
+            Every asset<br />
+            <span class="accent-word">on-brand.</span><br />
+            Every decision<br />
+            <span class="accent-word">accountable.</span>
+          </h1>
+
+          <p class="hero-sub" data-reveal style="--rd: 180ms">
+            VerityBrand checks content against approved rules, verifies claims against traceable sources, and asks a human before anything goes live.
+          </p>
+
+          <div class="hero-actions" data-reveal style="--rd: 300ms">
+            <button type="button" class="btn btn-primary" data-open-workspace>
+              Launch Workspace →
+            </button>
+            <a href="#solutions" class="btn btn-outline">
+              Spec &amp; Data Model
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-foot" data-reveal style="--rd: 420ms">
+        <div class="hero-telemetry">
+          <span><strong>412</strong> CLAIMS VERIFIED</span>
+          <span>·</span>
+          <span><strong>37</strong> RULES ACTIVE</span>
+          <span>·</span>
+          <span><strong>12</strong> FACTS EXPIRING</span>
+          <span>·</span>
+          <span><strong>HUMAN APPROVAL REQUIRED</strong></span>
+        </div>
+        <div class="hero-live-Readout">
+          <span class="pulse-dot"></span>
+          <span id="heroStepTelemetry">CORE SEQUENCE // 01 CLAIM: "guaranteed 12% returns"</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ================= SECTION 2 · GOVERNANCE CAPABILITIES ================= -->
+    <section class="section features" id="features">
+      <div class="section-head" data-reveal>
+        <span class="eyebrow">EVIDENCE-BACKED GOVERNANCE</span>
+        <h2>Everything needed to keep content accountable</h2>
+        <p>
+          VerityBrand connects rules, facts, evidence and human approval into one traceable review workflow.
+        </p>
+      </div>
+
+      <div class="features-grid">
+        <!-- Card 1 -->
+        <article class="card" data-reveal style="--rd: 0ms">
+          <div class="card-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              <path d="m9 12 2 2 4-4" />
+            </svg>
+          </div>
+          <div class="card-meta">01 / RULE</div>
+          <h3>Rule Engine</h3>
+          <p>Check banned terms, required phrases, numbers, dates and deterministic policy rules.</p>
+        </article>
+
+        <!-- Card 2 -->
+        <article class="card" data-reveal style="--rd: 90ms">
+          <div class="card-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+          </div>
+          <div class="card-meta">02 / CLAIM</div>
+          <h3>Grounded Claim Verification</h3>
+          <p>Extract claims, retrieve approved evidence, compare against source truth and attach citations.</p>
+        </article>
+
+        <!-- Card 3 -->
+        <article class="card" data-reveal style="--rd: 180ms">
+          <div class="card-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+          <div class="card-meta">03 / EXPIRY</div>
+          <h3>Expiry Detection</h3>
+          <p>Flag claims that depend on facts whose validity period has expired.</p>
+        </article>
+
+        <!-- Card 4 -->
+        <article class="card" data-reveal style="--rd: 270ms">
+          <div class="card-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+          </div>
+          <div class="card-meta">04 / FIXES</div>
+          <h3>Intent-Preserving Fixes</h3>
+          <p>Suggest compliant edits without silently changing the creator’s persuasive intent.</p>
+        </article>
+
+        <!-- Card 5 -->
+        <article class="card" data-reveal style="--rd: 360ms">
+          <div class="card-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+            </svg>
+          </div>
+          <div class="card-meta">05 / VISUAL</div>
+          <h3>Visual &amp; Accessibility Checks</h3>
+          <p>Check logo usage, typography, contrast, palette and basic accessibility requirements.</p>
+        </article>
+
+        <!-- Card 6 -->
+        <article class="card" data-reveal style="--rd: 450ms">
+          <div class="card-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
+            </svg>
+          </div>
+          <div class="card-meta">06 / INSIGHT</div>
+          <h3>Governance Dashboard</h3>
+          <p>Surface recurring violations, dismissed findings, unclear rules and review history.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ================= SECTION 3 · VERIFICATION SHOWCASE + STATS ================= -->
+    <section class="section showcase" id="solutions">
+      <div class="showcase-grid">
+        <div class="showcase-copy" data-reveal>
+          <span class="eyebrow">TRACE EVERY DECISION</span>
+          <h2>From claim to accountable decision.</h2>
+          <p>
+            Every finding is connected to the exact claim, applicable rule, supporting evidence, validity period and confidence level behind it.
+          </p>
+          <button type="button" class="btn btn-primary" data-open-workspace>
+            Launch Review Workspace →
+          </button>
+        </div>
+
+        <!-- Refined Verification Record (Document/Evidence Record, NOT a generic analytics dashboard) -->
+        <div class="verification-record" data-reveal style="--rd: 140ms">
+          <div class="record-header">
+            <span class="record-label">
+              <span class="pulse-dot"></span>
+              LIVE FINDING
+            </span>
+            <span class="record-badge">4 FINDINGS DETECTED</span>
+          </div>
+
+          <div class="record-claim-box">
+            <div class="record-claim-caption">EXTRACTED CLAIM · SPAN [22..44]</div>
+            <div class="record-claim-quote">“guaranteed 12% returns”</div>
+          </div>
+
+          <div class="record-body-layout">
+            <div class="record-rows" id="showcaseRecordRows">
+              <div class="record-row active-trace" data-trace-idx="1">
+                <div class="record-row-top">
+                  <span>RULE</span>
+                  <span class="code-crit">R-07 · v3.0</span>
+                </div>
+                <div class="record-row-val">Guaranteed return promise prohibited</div>
+              </div>
+
+              <div class="record-row" data-trace-idx="2">
+                <div class="record-row-top">
+                  <span>EVIDENCE</span>
+                  <span class="code-id">E-014</span>
+                </div>
+                <div class="record-row-val">SEBI Advertising Code</div>
+              </div>
+
+              <div class="record-row" data-trace-idx="3">
+                <div class="record-row-top">
+                  <span>CONFIDENCE</span>
+                  <span class="code-id">1.00 · DETERMINISTIC</span>
+                </div>
+                <div class="record-row-val">Exact policy rule match verified</div>
+              </div>
+
+              <div class="record-row" data-trace-idx="4">
+                <div class="record-row-top">
+                  <span>FACT</span>
+                  <span class="code-warn">F-021</span>
+                </div>
+                <div class="record-row-val">AUM figure expired 30 JUN 2026</div>
+              </div>
+
+              <div class="record-row" data-trace-idx="5">
+                <div class="record-row-top">
+                  <span>HUMAN DECISION</span>
+                  <span class="code-warn">LOCKED GATE</span>
+                </div>
+                <div class="record-row-val">AWAITING REVIEW</div>
+              </div>
+            </div>
+
+            <!-- Connected Trail Spine -->
+            <div class="record-trail-panel" id="showcaseTrailSteps">
+              <div class="trail-spine-line">
+                <div class="trail-spine-progress"></div>
+              </div>
+              <div class="trail-step active" data-step="0">
+                <span class="trail-dot"></span>
+                <span>CLAIM</span>
+              </div>
+              <div class="trail-step" data-step="1">
+                <span class="trail-dot"></span>
+                <span>RULE</span>
+              </div>
+              <div class="trail-step" data-step="2">
+                <span class="trail-dot"></span>
+                <span>EVIDENCE</span>
+              </div>
+              <div class="trail-step" data-step="3">
+                <span class="trail-dot"></span>
+                <span>CONFIDENCE</span>
+              </div>
+              <div class="trail-step" data-step="4">
+                <span class="trail-dot"></span>
+                <span>HUMAN DECISION</span>
+              </div>
+              <div class="trail-step" data-step="5">
+                <span class="trail-dot"></span>
+                <span>AUDIT</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Four Governance Stats -->
+      <div class="stats-grid">
+        <div class="stat" data-reveal style="--rd: 0ms">
+          <div class="stat-num">412</div>
+          <div class="stat-label">Claims Verified</div>
+          <div class="stat-sub">TRACEABLE TO SOURCE ID</div>
+        </div>
+        <div class="stat" data-reveal style="--rd: 90ms">
+          <div class="stat-num">37</div>
+          <div class="stat-label">Active Rules</div>
+          <div class="stat-sub">VERSION-PINNED POLICIES</div>
+        </div>
+        <div class="stat" data-reveal style="--rd: 180ms">
+          <div class="stat-num">12</div>
+          <div class="stat-label">Expiring Facts</div>
+          <div class="stat-sub">TIME-BOUNDED LEDGER</div>
+        </div>
+        <div class="stat" data-reveal style="--rd: 270ms">
+          <div class="stat-num">100%</div>
+          <div class="stat-label">Human Approval Gate</div>
+          <div class="stat-sub">ZERO AUTO-PUBLISH</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SECTION 4 · CTA + FOOTER ================= -->
+    <section class="section cta" id="cta">
+      <div class="cta-card" data-reveal>
+        <span class="eyebrow">READY FOR ACCOUNTABLE CONTENT?</span>
+        <h2>Put evidence behind every decision.</h2>
+        <p>
+          Review claims, verify facts, resolve findings and keep a traceable approval trail before anything goes live.
+        </p>
+        <div class="cta-actions">
+          <button type="button" class="btn btn-primary" data-open-workspace>
+            Launch Workspace →
+          </button>
+          <a href="#features" class="btn btn-outline">
+            View Architecture
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <h4>VerityBrand</h4>
+          <p>Evidence-backed brand governance.</p>
+        </div>
+
+        <div class="footer-cols">
+          <div class="footer-col">
+            <h5>Product</h5>
+            <ul>
+              <li><button type="button" data-open-workspace>Review Workspace</button></li>
+              <li><a href="#solutions">5-Step Pipeline</a></li>
+              <li><button type="button" data-open-workspace>Findings</button></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h5>Governance</h5>
+            <ul>
+              <li><a href="#features">Rules</a></li>
+              <li><a href="#solutions">Evidence</a></li>
+              <li><button type="button" data-open-workspace>Audit Trail</button></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h5>System</h5>
+            <ul>
+              <li><a href="#features">Architecture</a></li>
+              <li><a href="#solutions">Data Model</a></li>
+              <li><a href="#cta">Security</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <span id="copyrightYearText">© 2026 VerityBrand — Every decision accountable.</span>
+        <span>CLAIM → EVIDENCE → RULE → CONFIDENCE → HUMAN DECISION → AUDIT</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ================= INTERACTIVE REVIEW WORKSPACE MODAL ================= -->
+  <aside class="workspace-modal" id="workspaceModal" aria-hidden="true" data-lenis-prevent>
+    <div class="ws-topbar">
+      <div class="ws-breadcrumb">
+        <button type="button" class="btn btn-ghost" id="closeWorkspaceBtn" style="padding: 6px 14px; font-size: 12px;">
+          ← Back to Field
+        </button>
+        <span>Arthaa Finserv</span>
+        <span>/</span>
+        <span>Q4 Campaign</span>
+        <span>/</span>
+        <strong>Gold Savings Fund Launch Copy · v2</strong>
+        <span class="ws-status-pill" id="wsTopStatusPill">PUBLISH LOCKED</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <button type="button" class="ws-act-btn" id="wsResetBtn">Reset Demo</button>
+        <button type="button" class="ws-act-btn accept" id="wsAcceptAllBtn">Resolve All (4)</button>
+      </div>
+    </div>
+
+    <div class="ws-body">
+      <!-- Left Sidebar -->
+      <div class="ws-sidebar">
+        <div class="ws-nav-list">
+          <button type="button" class="ws-nav-item">
+            <span>Brand</span>
+            <span class="ws-nav-count">37</span>
+          </button>
+          <button type="button" class="ws-nav-item">
+            <span>Drafts</span>
+            <span class="ws-nav-count">2</span>
+          </button>
+          <button type="button" class="ws-nav-item active">
+            <span>Review</span>
+            <span class="ws-nav-count" id="wsSidebarPendingBadge">4</span>
+          </button>
+          <button type="button" class="ws-nav-item">
+            <span>Insights</span>
+          </button>
+          <button type="button" class="ws-nav-item">
+            <span>Audit Log</span>
+            <span class="ws-nav-count" id="wsAuditCountBadge">1</span>
+          </button>
+        </div>
+
+        <div style="border-top: 1px solid var(--line); padding-top: 14px; font-family: var(--font-mono); font-size: 11px; color: var(--muted);">
+          <div style="color: var(--accent); margin-bottom: 4px;">HUMAN AUTHORITY LOCK</div>
+          <div>AI proposes. Humans dispose.</div>
+        </div>
+      </div>
+
+      <!-- Center Main Draft & Intent-Preserving Diff -->
+      <div class="ws-main">
+        <div class="ws-draft-box">
+          <div class="ws-draft-meta">
+            <span>DRAFT INPUT // ARTHAA GOLD SAVINGS FUND</span>
+            <span>CLICK ANY HIGHLIGHTED CLAIM TO INSPECT</span>
+          </div>
+
+          <div class="ws-draft-passage" id="wsDraftPassage">
+            <span class="hl-span hl-tone" data-f-idx="3" id="draftSpan3">Grow your wealth</span>
+            with
+            <span class="hl-span hl-crit" data-f-idx="0" id="draftSpan0">guaranteed 12% returns</span>
+            from the Arthaa Gold Savings Fund,
+            <span class="hl-span hl-verify" data-f-idx="2" id="draftSpan2">India's #1 fund</span>
+            managing
+            <span class="hl-span hl-warn" data-f-idx="1" id="draftSpan1">Rs 4,200 crore</span>.
+            Start a SIP today and build a habit that grows with you.
+          </div>
+        </div>
+
+        <!-- Intent-Preserving Fix Comparison -->
+        <div class="ws-diff-box">
+          <div class="ws-diff-header">
+            <div>
+              <span class="eyebrow" style="margin-bottom: 4px;">INTENT-PRESERVING FIX</span>
+              <div style="font-size: 13px; color: var(--muted);">
+                <strong>Nothing changes silently.</strong> Compare original vs. compliant suggestion.
+              </div>
+            </div>
+
+            <div class="ws-toggle-group">
+              <button type="button" class="ws-toggle-btn active" data-diff-mode="both">Side-by-Side</button>
+              <button type="button" class="ws-toggle-btn" data-diff-mode="original">Original</button>
+              <button type="button" class="ws-toggle-btn" data-diff-mode="suggested">Suggested Fix</button>
+            </div>
+          </div>
+
+          <div class="ws-diff-grid" id="wsDiffGrid">
+            <div class="ws-diff-pane" id="wsDiffOrigPane">
+              <span class="ws-diff-tag" style="color: var(--critical);">ORIGINAL</span>
+              <div style="font-family: var(--font-display); font-size: 20px;" id="wsDiffOrigText">
+                “Grow your wealth with guaranteed 12% returns.”
+              </div>
+            </div>
+            <div class="ws-diff-pane suggested" id="wsDiffSuggPane">
+              <span class="ws-diff-tag" style="color: var(--accent);">SUGGESTED FIX</span>
+              <div style="font-family: var(--font-display); font-size: 20px;" id="wsDiffSuggText">
+                “Grow your wealth with long-term, market-linked investing.”
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Findings Column -->
+      <div class="ws-findings-panel" id="wsFindingsList">
+        <!-- Populated dynamically by JS -->
+      </div>
+    </div>
+
+    <!-- Bottom Human Authority Lock Bar -->
+    <div class="ws-Lockbar">
+      <div class="ws-progress-wrap">
+        <span id="wsResolvedCounter">0 of 4 findings resolved</span>
+        <div class="ws-progress-track">
+          <div class="ws-progress-fill" id="wsProgressFill"></div>
+        </div>
+        <span style="color: var(--muted-2);" id="wsLockHint">→ Unlocks Sign-off</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="font-family: var(--font-mono); font-size: 11px; color: var(--muted);">
+          AI proposes. Humans dispose.
+        </span>
+        <button type="button" class="btn-approve-lock" id="wsApproveBtn" disabled>
+          <span id="wsLockIcon">🔒</span>
+          <span id="wsApproveBtnLabel">Approve &amp; Sign Off</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ================= APPLICATION & WEBGL SCRIPT ================= -->
+  <script type="module">
+    import * as THREE from 'three';
+    import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+    import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+    import { GammaCorrectionShader } from 'three/examples/jsm/shaders/GammaCorrectionShader.js';
+
+    // Set Dynamic Year
+    const yearEl = document.getElementById('copyrightYearText');
+    if (yearEl) {
+      yearEl.textContent = `© ${new Date().getFullYear()} VerityBrand — Every decision accountable.`;
+    }
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // ============================================================================
+    // 1. LENIS SMOOTH SCROLL & STAGGERED REVEAL OBSERVER
+    // ============================================================================
+    let lenis = null;
+    if (!prefersReducedMotion) {
+      import('https://unpkg.com/@studio-freight/lenis@1.0.42/dist/lenis.mjs')
+        .then((mod) => {
+          const Lenis = mod.default || mod.Lenis;
+          if (Lenis) {
+            lenis = new Lenis({
+              duration: 1.15,
+              smoothWheel: true,
+              touchMultiplier: 1.5
+            });
+          }
+        })
+        .catch(() => {});
+    }
+
+    const revealEls = document.querySelectorAll('[data-reveal]');
+    if (prefersReducedMotion) {
+      revealEls.forEach((el) => el.classList.add('in'));
+    } else {
+      const io = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('in');
+              io.unobserve(entry.target);
+            }
+          });
+        },
+        { threshold: 0.18, rootMargin: '0px 0px -8% 0px' }
+      );
+      revealEls.forEach((el) => io.observe(el));
+    }
+
+    // ============================================================================
+    // 2. PERSISTENT FULL-VIEWPORT WEBGL EVIDENCE FIELD (NO EARTH / NO PLANET)
+    // ============================================================================
+    const canvas = document.querySelector('.evidence-canvas');
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: true,
+      powerPreference: 'high-performance'
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputEncoding = THREE.sRGBEncoding;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(
+      45,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      120
+    );
+    camera.position.set(0, 0, 11.5);
+
+    // Post-processing: RenderPass + Restrained UnrealBloomPass + GammaCorrection
+    const composer = new EffectComposer(renderer);
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    const isMobileViewport = window.innerWidth <= 560;
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      isMobileViewport ? 0.38 : 0.62, // subtle, restrained emerald bloom
+      0.75,
+      0.22
+    );
+    composer.addPass(bloomPass);
+
+    const gammaPass = new ShaderPass(GammaCorrectionShader);
+    composer.addPass(gammaPass);
+
+    /* Helper: Create crisp procedural canvas sprite for floating 3D typography labels */
+    function createLabelSprite(topLabel, mainText, accentColor = '#3395FF', scaleWidth = 2.5, opacity = 0.9) {
+      const c = document.createElement('canvas');
+      c.width = 512;
+      c.height = 160;
+      const ctx = c.getContext('2d');
+
+      ctx.clearRect(0, 0, c.width, c.height);
+
+      // Subtle dark glass backing pill
+      ctx.fillStyle = 'rgba(25, 40, 57, 0.88)';
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(16, 22, 480, 112, 14);
+      ctx.fill();
+      ctx.stroke();
+
+      // Glowing status dot
+      ctx.fillStyle = accentColor;
+      ctx.beginPath();
+      ctx.arc(44, 58, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Top technical monospace tag
+      ctx.font = '600 20px "JetBrains Mono", monospace';
+      ctx.fillStyle = accentColor;
+      ctx.fillText(topLabel, 62, 65);
+
+      // Main claim/rule line
+      ctx.font = '500 25px "Inter", sans-serif';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText(mainText, 40, 108);
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.encoding = THREE.sRGBEncoding;
+      const mat = new THREE.SpriteMaterial({
+        map: tex,
+        transparent: true,
+        opacity,
+        depthWrite: false
+      });
+      const sprite = new THREE.Sprite(mat);
+      sprite.scale.set(scaleWidth, scaleWidth * (160 / 512), 1);
+      return sprite;
+    }
+
+    // Helper: Create sparse floating metadata fragment sprite
+    function createFragmentSprite(text, opacity = 0.34) {
+      const c = document.createElement('canvas');
+      c.width = 384;
+      c.height = 64;
+      const ctx = c.getContext('2d');
+      ctx.font = '500 20px "JetBrains Mono", monospace';
+      ctx.fillStyle = 'rgba(180, 205, 253, 0.85)';
+      ctx.fillText(text, 12, 40);
+
+      const tex = new THREE.CanvasTexture(c);
+      const mat = new THREE.SpriteMaterial({
+        map: tex,
+        transparent: true,
+        opacity,
+        depthWrite: false
+      });
+      const s = new THREE.Sprite(mat);
+      s.scale.set(1.65, 0.28, 1);
+      return s;
+    }
+
+    // ============================================================================
+    // SCENE HIERARCHY: worldGroup
+    // ============================================================================
+    const worldGroup = new THREE.Group();
+    scene.add(worldGroup);
+
+    const verificationCore = new THREE.Group();
+    const evidenceNodes = new THREE.Group();
+    const connectionPaths = new THREE.Group();
+    const orbitalPaths = new THREE.Group();
+    const ambientParticles = new THREE.Group();
+    const dataFragments = new THREE.Group();
+    const atmosphericGlow = new THREE.Group();
+
+    worldGroup.add(
+      atmosphericGlow,
+      orbitalPaths,
+      connectionPaths,
+      verificationCore,
+      evidenceNodes,
+      ambientParticles,
+      dataFragments
+    );
+
+    // 1. ATMOSPHERIC GLOW (Non-planetary organic radial illumination shader)
+    const glowGeo = new THREE.PlaneGeometry(24, 16);
+    const glowMat = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      uniforms: {
+        uTime: { value: 0 },
+        uColor1: { value: new THREE.Color('#3395FF') },
+        uColor2: { value: new THREE.Color('#528FF0') }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        varying vec2 vUv;
+        uniform float uTime;
+        uniform vec3 uColor1;
+        uniform vec3 uColor2;
+        void main() {
+          vec2 p = (vUv - 0.5) * vec2(2.2, 1.8);
+          float d1 = length(p - vec2(sin(uTime * 0.2) * 0.15, cos(uTime * 0.15) * 0.1));
+          float d2 = length(p * vec2(0.8, 1.4) + vec2(0.2, -0.1));
+          float glow = exp(-d1 * 2.6) * 0.16 + exp(-d2 * 3.2) * 0.11;
+          vec3 col = mix(uColor2, uColor1, exp(-d1 * 2.0));
+          gl_FragColor = vec4(col, glow);
+        }
+      `
+    });
+    const glowMesh = new THREE.Mesh(glowGeo, glowMat);
+    glowMesh.position.set(0, 0, -3.5);
+    atmosphericGlow.add(glowMesh);
+
+    // 2. CENTRAL VERIFICATION NUCLEUS (VERITYBRAND · VERIFICATION CORE)
+    // Concentric precision rings (flat/tilted architectural rings, NOT a globe)
+    const coreRingRadii = [0.75, 1.08, 1.42, 1.85];
+    const coreRings = [];
+    coreRingRadii.forEach((radius, idx) => {
+      const curve = new THREE.EllipseCurve(0, 0, radius, radius, 0, Math.PI * 2, false, 0);
+      const pts = curve.getPoints(128).map((p) => new THREE.Vector3(p.x, p.y, 0));
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      const mat = new THREE.LineBasicMaterial({
+        color: idx % 2 === 0 ? 0x3395FF : 0x528FF0,
+        transparent: true,
+        opacity: idx === 0 ? 0.55 : 0.24 - idx * 0.04
+      });
+      const ring = new THREE.LineLoop(geo, mat);
+      ring.rotation.x = idx * 0.22 - 0.35;
+      ring.rotation.y = idx * 0.18;
+      verificationCore.add(ring);
+      coreRings.push(ring);
+    });
+
+    // Core Typography Emblem Sprite
+    const coreCanvas = document.createElement('canvas');
+    coreCanvas.width = 512;
+    coreCanvas.height = 512;
+    const cctx = coreCanvas.getContext('2d');
+    const rGrad = cctx.createRadialGradient(256, 256, 10, 256, 256, 220);
+    rGrad.addColorStop(0, 'rgba(51, 149, 255, 0.32)');
+    rGrad.addColorStop(0.55, 'rgba(25, 40, 57, 0.90)');
+    rGrad.addColorStop(1, 'rgba(25, 40, 57, 0)');
+    cctx.fillStyle = rGrad;
+    cctx.beginPath();
+    cctx.arc(256, 256, 220, 0, Math.PI * 2);
+    cctx.fill();
+
+    cctx.strokeStyle = 'rgba(51, 149, 255, 0.55)';
+    cctx.lineWidth = 2;
+    cctx.beginPath();
+    cctx.arc(256, 256, 148, 0, Math.PI * 2);
+    cctx.stroke();
+
+    cctx.textAlign = 'center';
+    cctx.font = '600 18px "JetBrains Mono", monospace';
+    cctx.fillStyle = '#B4CDFD';
+    cctx.fillText('VERITYBRAND', 256, 224);
+
+    cctx.font = '500 30px "Playfair Display", Georgia, serif';
+    cctx.fillStyle = '#FFFFFF';
+    cctx.fillText('VERIFICATION', 256, 264);
+
+    cctx.font = 'italic 26px "Playfair Display", Georgia, serif';
+    cctx.fillStyle = '#3395FF';
+    cctx.fillText('CORE', 256, 298);
+
+    const coreTex = new THREE.CanvasTexture(coreCanvas);
+    coreTex.encoding = THREE.sRGBEncoding;
+    const coreSprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: coreTex,
+        transparent: true,
+        depthWrite: false
+      })
+    );
+    coreSprite.scale.set(2.35, 2.35, 1);
+    verificationCore.add(coreSprite);
+
+    // 3. HUGE ORBITAL PATHS EXTENDING BEYOND VIEWPORT
+    const orbitConfigs = [
+      { rx: 5.4, ry: 2.3, rotX: 0.62, rotY: -0.22, rotZ: 0.14, op: 0.16, col: 0x3395FF },
+      { rx: 6.8, ry: 3.1, rotX: -0.48, rotY: 0.31, rotZ: -0.2, op: 0.11, col: 0x528FF0 },
+      { rx: 8.2, ry: 3.9, rotX: 0.35, rotY: 0.12, rotZ: 0.28, op: 0.08, col: 0xB4CDFD },
+      { rx: 4.1, ry: 1.85, rotX: -0.7, rotY: -0.35, rotZ: -0.1, op: 0.2, col: 0x3395FF },
+      { rx: 9.6, ry: 4.4, rotX: 0.52, rotY: -0.18, rotZ: -0.08, op: 0.06, col: 0x528FF0 }
+    ];
+
+    const orbitLines = [];
+    orbitConfigs.forEach((cfg) => {
+      const curve = new THREE.EllipseCurve(0, 0, cfg.rx, cfg.ry, 0, Math.PI * 2, false, 0);
+      const points = curve.getPoints(180).map((p) => new THREE.Vector3(p.x, p.y, 0));
+      const geo = new THREE.BufferGeometry().setFromPoints(points);
+      const mat = new THREE.LineBasicMaterial({
+        color: cfg.col,
+        transparent: true,
+        opacity: cfg.op
+      });
+      const line = new THREE.LineLoop(geo, mat);
+      line.rotation.set(cfg.rotX, cfg.rotY, cfg.rotZ);
+      orbitalPaths.add(line);
+      orbitLines.push(line);
+    });
+
+    // 4. SPATIAL EVIDENCE NODES (Organic 3D distribution, NOT a symmetrical diagram)
+    const nodeSpecs = [
+      {
+        id: 'CLAIM',
+        top: 'CLAIM · SPAN [22..44]',
+        main: '"guaranteed 12% returns"',
+        pos: new THREE.Vector3(-2.65, 1.35, 1.15),
+        color: '#3395FF',
+        scale: 2.35,
+        stepIndex: 0
+      },
+      {
+        id: 'RULE',
+        top: 'RULE · R-07 · v3.0',
+        main: 'Guaranteed returns prohibited',
+        pos: new THREE.Vector3(2.55, 1.48, 0.85),
+        color: '#528FF0',
+        scale: 2.3,
+        stepIndex: 1
+      },
+      {
+        id: 'EVIDENCE',
+        top: 'EVIDENCE · E-014',
+        main: 'SEBI Advertising Code',
+        pos: new THREE.Vector3(3.35, -0.25, 0.45),
+        color: '#B4CDFD',
+        scale: 2.2,
+        stepIndex: 2
+      },
+      {
+        id: 'CONFIDENCE',
+        top: 'CONFIDENCE · 1.00',
+        main: 'DETERMINISTIC MATCH',
+        pos: new THREE.Vector3(1.95, -1.65, 0.95),
+        color: '#3395FF',
+        scale: 2.15,
+        stepIndex: 3
+      },
+      {
+        id: 'HUMAN_REVIEW',
+        top: 'HUMAN REVIEW',
+        main: 'AWAITING DECISION',
+        pos: new THREE.Vector3(-2.15, -1.55, 1.05),
+        color: '#528FF0',
+        scale: 2.25,
+        stepIndex: 4
+      },
+      {
+        id: 'AUDIT',
+        top: 'AUDIT · v3 LOCKED',
+        main: 'PUBLISH LOCKED',
+        pos: new THREE.Vector3(-3.45, -0.15, 0.55),
+        color: '#3395FF',
+        scale: 2.2,
+        stepIndex: 5
+      },
+      {
+        id: 'FACT',
+        top: 'FACT · F-021',
+        main: 'Ledger Record · Rs 4,200 cr',
+        pos: new THREE.Vector3(-1.35, 2.35, -1.2),
+        color: '#B4CDFD',
+        scale: 1.85,
+        stepIndex: 2
+      },
+      {
+        id: 'EXPIRY',
+        top: 'EXPIRY · 30 JUN 2026',
+        main: 'Validity Period Lapsed',
+        pos: new THREE.Vector3(1.45, 2.45, -1.1),
+        color: '#528FF0',
+        scale: 1.85,
+        stepIndex: 2
+      }
+    ];
+
+    const nodeObjects = [];
+    nodeSpecs.forEach((spec, idx) => {
+      const group = new THREE.Group();
+      group.position.copy(spec.pos);
+
+      // Glowing anchor point sphere
+      const dotGeo = new THREE.SphereGeometry(0.055, 16, 16);
+      const dotMat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(spec.color)
+      });
+      const dot = new THREE.Mesh(dotGeo, dotMat);
+      group.add(dot);
+
+      // Sprite card offset slightly above anchor
+      const sprite = createLabelSprite(
+        spec.top,
+        spec.main,
+        spec.color,
+        spec.scale,
+        spec.pos.z < 0 ? 0.55 : 0.88
+      );
+      sprite.position.set(0, 0.34, 0);
+      group.add(sprite);
+
+      evidenceNodes.add(group);
+      nodeObjects.push({
+        spec,
+        group,
+        sprite,
+        dot,
+        basePos: spec.pos.clone(),
+        phase: idx * 0.95
+      });
+    });
+
+    // 5. CURVED 3D CONNECTION PATHS & TRAVELING PULSE PARTICLES
+    const pathCurves = [];
+    const pulsePackets = [];
+
+    // Connect each node to the Verification Core + sequential perimeter narrative links
+    nodeObjects.forEach((nObj, i) => {
+      const start = nObj.basePos.clone();
+      const end = new THREE.Vector3(0, 0, 0);
+      const mid = start.clone().lerp(end, 0.5);
+      mid.y += (i % 2 === 0 ? 0.55 : -0.45);
+      mid.z += 0.4;
+
+      const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+      const pts = curve.getPoints(64);
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      const mat = new THREE.LineBasicMaterial({
+        color: 0x3395FF,
+        transparent: true,
+        opacity: 0.18
+      });
+      const line = new THREE.Line(geo, mat);
+      connectionPaths.add(line);
+
+      // Traveling data packet sphere along this path
+      const pktGeo = new THREE.SphereGeometry(0.042, 12, 12);
+      const pktMat = new THREE.MeshBasicMaterial({
+        color: i === 0 || i === 5 ? 0xFFFFFF : 0x3395FF
+      });
+      const pkt = new THREE.Mesh(pktGeo, pktMat);
+      connectionPaths.add(pkt);
+
+      pathCurves.push({ curve, line, mat, stepIndex: nObj.spec.stepIndex });
+      pulsePackets.push({
+        curve,
+        mesh: pkt,
+        t: (i * 0.17) % 1,
+        speed: 0.16 + (i % 3) * 0.04,
+        stepIndex: nObj.spec.stepIndex
+      });
+    });
+
+    // Sequential narrative loop: CLAIM -> RULE -> EVIDENCE -> CONFIDENCE -> HUMAN_REVIEW -> AUDIT
+    for (let i = 0; i < 6; i++) {
+      const a = nodeObjects[i].basePos;
+      const b = nodeObjects[(i + 1) % 6].basePos;
+      const mid = a.clone().lerp(b, 0.5).multiplyScalar(1.15);
+      const curve = new THREE.QuadraticBezierCurve3(a, mid, b);
+      const pts = curve.getPoints(56);
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      const mat = new THREE.LineBasicMaterial({
+        color: 0x528FF0,
+        transparent: true,
+        opacity: 0.12
+      });
+      connectionPaths.add(new THREE.Line(geo, mat));
+      pathCurves.push({ curve, line: null, mat, stepIndex: i });
+    }
+
+    // 6. AMBIENT DATA PARTICLES (680 blue/navy/light-blue-tint data particles)
+    const particleCount = window.innerWidth <= 380 ? 280 : isMobileViewport ? 420 : 720;
+    const pPositions = new Float32Array(particleCount * 3);
+    const pColors = new Float32Array(particleCount * 3);
+    const cEmerald = new THREE.Color('#3395FF');
+    const cTeal = new THREE.Color('#528FF0');
+    const cMuted = new THREE.Color('#B4CDFD');
+
+    for (let i = 0; i < particleCount; i++) {
+      const r = 1.2 + Math.random() * 8.5;
+      const theta = Math.random() * Math.PI * 2;
+      const ySpread = (Math.random() - 0.5) * 5.2;
+
+      pPositions[i * 3] = Math.cos(theta) * r;
+      pPositions[i * 3 + 1] = ySpread;
+      pPositions[i * 3 + 2] = (Math.random() - 0.5) * 5.5;
+
+      const pick = Math.random();
+      const col = pick < 0.48 ? cEmerald : pick < 0.82 ? cTeal : cMuted;
+      pColors[i * 3] = col.r;
+      pColors[i * 3 + 1] = col.g;
+      pColors[i * 3 + 2] = col.b;
+    }
+
+    const pGeo = new THREE.BufferGeometry();
+    pGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
+    pGeo.setAttribute('color', new THREE.BufferAttribute(pColors, 3));
+
+    const pMat = new THREE.PointsMaterial({
+      size: 0.045,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.58,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
+    const particleSystem = new THREE.Points(pGeo, pMat);
+    ambientParticles.add(particleSystem);
+
+    // 7. SPARSE FLOATING TECHNICAL METADATA FRAGMENTS
+    const fragmentTexts = [
+      'R-07 · v3.0',
+      'E-014',
+      'F-021',
+      'VALID UNTIL 30 JUN 2026',
+      'CONFIDENCE 1.00',
+      'HUMAN REVIEW',
+      'AUDIT TRAIL',
+      'CLAIMS VERIFIED',
+      'RULES ACTIVE'
+    ];
+    const fragmentSprites = [];
+    fragmentTexts.forEach((txt, i) => {
+      const sp = createFragmentSprite(txt, 0.28);
+      const angle = (i / fragmentTexts.length) * Math.PI * 2;
+      const rad = 3.8 + (i % 3) * 1.4;
+      sp.position.set(
+        Math.cos(angle) * rad,
+        (Math.sin(angle * 2) * 1.9),
+        -1.5 - (i % 3) * 0.8
+      );
+      dataFragments.add(sp);
+      fragmentSprites.push({ sprite: sp, baseOp: 0.26, phase: i * 1.1 });
+    });
+
+    // ============================================================================
+    // 3. SCROLL CHOREOGRAPHY KEYFRAMES & HERO ENTRANCE
+    // ============================================================================
+    const STOPS_X = [
+      { p: 0, v: 0 },
+      { p: .32, v: -3.1 },
+      { p: .64, v: 3.2 },
+      { p: 1, v: 0 }
+    ];
+
+    const STOPS_Y = [
+      { p: 0, v: -4.5 },
+      { p: .32, v: .55 },
+      { p: .64, v: .45 },
+      { p: 1, v: .15 }
+    ];
+
+    const STOPS_S = [
+      { p: 0, v: 2.15 },
+      { p: .32, v: 1.0 },
+      { p: .64, v: .92 },
+      { p: 1, v: 1.12 }
+    ];
+
+    function smoothstep(min, max, value) {
+      const x = Math.max(0, Math.min(1, (value - min) / (max - min)));
+      return x * x * (3 - 2 * x);
+    }
+
+    function sampleStops(stops, p) {
+      for (let i = 0; i < stops.length - 1; i++) {
+        const a = stops[i];
+        const b = stops[i + 1];
+        if (p >= a.p && p <= b.p) {
+          const t = smoothstep(a.p, b.p, p);
+          return a.v + (b.v - a.v) * t;
+        }
+      }
+      return stops[stops.length - 1].v;
+    }
+
+    // Damped state variables (starts at entrance Y = -6.5)
+    let curX = 0;
+    let curY = -6.5;
+    let curS = 2.15;
+    const entranceDuration = 1.9;
+    const startTime = performance.now();
+
+    // Subtle mouse parallax target
+    let mouseX = 0;
+    let mouseY = 0;
+    window.addEventListener('pointermove', (e) => {
+      mouseX = (e.clientX / window.innerWidth - 0.5) * 0.25;
+      mouseY = -(e.clientY / window.innerHeight - 0.5) * 0.18;
+    }, { passive: true });
+
+    // Live Verification 6-Step Sequence Telemetry
+    const stepLabels = [
+      'CORE SEQUENCE // 01 CLAIM: "guaranteed 12% returns"',
+      'CORE SEQUENCE // 02 RULE: R-07 · v3.0',
+      'CORE SEQUENCE // 03 EVIDENCE: E-014 · SEBI Ad Code',
+      'CORE SEQUENCE // 04 CONFIDENCE: 1.00 DETERMINISTIC',
+      'CORE SEQUENCE // 05 HUMAN REVIEW: AWAITING DECISION',
+      'CORE SEQUENCE // 06 AUDIT: PUBLISH LOCKED'
+    ];
+    const heroStepTelemetryEl = document.getElementById('heroStepTelemetry');
+    const showcaseRows = document.querySelectorAll('#showcaseRecordRows .record-row');
+    const showcaseTrailSteps = document.querySelectorAll('#showcaseTrailSteps .trail-step');
+    let lastActiveStep = -1;
+
+    // Animation Loop
+    let prevTime = performance.now();
+    function animate(now) {
+      requestAnimationFrame(animate);
+      if (lenis) lenis.raf(now);
+
+      const dt = Math.min(0.05, (now - prevTime) / 1000);
+      prevTime = now;
+      const elapsed = (now - startTime) / 1000;
+
+      // Compute normalized scroll progress p in [0, 1]
+      const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      const p = Math.max(0, Math.min(1, window.scrollY / maxScroll));
+
+      // Responsive lateral scaling factor for smaller viewports
+      const lateralFactor = window.innerWidth <= 980 ? 0.45 : 1.0;
+
+      const targetScrollX = sampleStops(STOPS_X, p) * lateralFactor;
+      const targetScrollY = sampleStops(STOPS_Y, p);
+      const targetScrollS = sampleStops(STOPS_S, p) * (window.innerWidth <= 560 ? 0.78 : 1.0);
+
+      // 1.9s cubic ease-out Hero Entrance from Y = -6.5 to -4.5
+      const entranceT = Math.min(1, elapsed / entranceDuration);
+      const entranceEase = 1 - Math.pow(1 - entranceT, 3);
+      const entranceOffsetY = (1 - entranceEase) * -2.0;
+
+      const finalTargetX = targetScrollX + mouseX;
+      const finalTargetY = targetScrollY + entranceOffsetY + mouseY;
+
+      const damp = Math.min(1, dt * 3.2);
+      curX += (finalTargetX - curX) * damp;
+      curY += (finalTargetY - curY) * damp;
+      curS += (targetScrollS - curS) * damp;
+
+      worldGroup.position.set(curX, curY, 0);
+      worldGroup.scale.setScalar(curS);
+      worldGroup.rotation.y = p * 0.42 + Math.sin(elapsed * 0.14) * 0.06;
+      worldGroup.rotation.x = p * 0.18;
+
+      // Update shader uniform
+      glowMat.uniforms.uTime.value = elapsed;
+
+      // Slowly pulse & rotate central Verification Core rings
+      const corePulse = 1 + Math.sin(elapsed * 1.6) * 0.035;
+      coreSprite.scale.set(2.35 * corePulse, 2.35 * corePulse, 1);
+      coreRings.forEach((r, idx) => {
+        r.rotation.z += dt * (idx % 2 === 0 ? 0.12 : -0.09);
+      });
+
+      // Slowly rotate giant orbital paths
+      orbitLines.forEach((oLine, idx) => {
+        oLine.rotation.z += dt * (idx % 2 === 0 ? 0.035 : -0.028);
+      });
+
+      // Determine current step (0..5) in the repeating Live Verification Sequence (3.2s per step)
+      const activeStep = Math.floor(elapsed / 3.2) % 6;
+      if (activeStep !== lastActiveStep) {
+        lastActiveStep = activeStep;
+        if (heroStepTelemetryEl) {
+          heroStepTelemetryEl.textContent = stepLabels[activeStep];
+        }
+        showcaseRows.forEach((row, idx) => {
+          row.classList.toggle('active-trace', idx === activeStep % showcaseRows.length);
+        });
+        showcaseTrailSteps.forEach((st, idx) => {
+          st.classList.toggle('active', idx <= activeStep);
+        });
+      }
+
+      // Autonomous subtle drift & sequential illumination of Evidence Nodes
+      nodeObjects.forEach((nObj) => {
+        nObj.group.position.y =
+          nObj.basePos.y + Math.sin(elapsed * 0.9 + nObj.phase) * 0.08;
+        nObj.group.position.x =
+          nObj.basePos.x + Math.cos(elapsed * 0.7 + nObj.phase) * 0.05;
+
+        const isStepActive = nObj.spec.stepIndex === activeStep;
+        const targetOpacity = isStepActive
+          ? 1.0
+          : nObj.basePos.z < 0
+          ? 0.45
+          : 0.76;
+        nObj.sprite.material.opacity +=
+          (targetOpacity - nObj.sprite.material.opacity) * 0.08;
+
+        const targetDotScale = isStepActive ? 1.65 : 1.0;
+        nObj.dot.scale.setScalar(
+          nObj.dot.scale.x + (targetDotScale - nObj.dot.scale.x) * 0.1
+        );
+      });
+
+      // Animate connection lines & traveling particles
+      pathCurves.forEach((pc) => {
+        const isCurrent = pc.stepIndex === activeStep;
+        const targetOp = isCurrent ? 0.58 : 0.14;
+        pc.mat.opacity += (targetOp - pc.mat.opacity) * 0.08;
+      });
+
+      pulsePackets.forEach((pkt) => {
+        pkt.t = (pkt.t + dt * pkt.speed) % 1;
+        const pos = pkt.curve.getPoint(pkt.t);
+        pkt.mesh.position.copy(pos);
+        const isCurrent = pkt.stepIndex === activeStep;
+        pkt.mesh.scale.setScalar(isCurrent ? 1.45 : 0.85);
+      });
+
+      // Drift ambient data particles slowly
+      particleSystem.rotation.y = elapsed * 0.025;
+      particleSystem.rotation.x = Math.sin(elapsed * 0.08) * 0.04;
+
+      // Subtle breathing on floating metadata fragments
+      fragmentSprites.forEach((f) => {
+        f.sprite.material.opacity =
+          0.16 + (Math.sin(elapsed * 0.8 + f.phase) * 0.5 + 0.5) * 0.25;
+      });
+
+      composer.render();
+    }
+
+    requestAnimationFrame(animate);
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      composer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // ============================================================================
+    // 4. FUNCTIONAL REVIEW WORKSPACE INTERACTION & HUMAN AUTHORITY LOCK
+    // ============================================================================
+    const initialFindings = [
+      {
+        id: 'F-0412',
+        idx: 0,
+        severity: 'CRITICAL',
+        sevColor: 'var(--critical)',
+        claim: 'guaranteed 12% returns',
+        replacement: 'long-term, market-linked investing*',
+        rule: 'R-07 · v3.0',
+        evidence: 'E-014 · SEBI Advertising Code',
+        confidence: '1.00 · Deterministic',
+        status: 'pending'
+      },
+      {
+        id: 'F-0413',
+        idx: 1,
+        severity: 'EXPIRED FACT',
+        sevColor: 'var(--warning)',
+        claim: 'Rs 4,200 crore',
+        replacement: 'Rs 4,850 crore (Q3 Audited AUM)',
+        rule: 'Fact F-021',
+        evidence: 'Expired 30 JUN 2026 · Current: Rs 4,850 crore',
+        confidence: '0.99 · Fact Ledger',
+        status: 'pending'
+      },
+      {
+        id: 'F-0414',
+        idx: 2,
+        severity: 'NEEDS VERIFICATION',
+        sevColor: 'var(--accent)',
+        claim: "India's #1 fund",
+        replacement: 'a leading domestic gold savings fund',
+        rule: 'Abstention Guard',
+        evidence: 'No approved source currently supports this claim.',
+        confidence: '0.94 · Grounded Retrieval',
+        status: 'pending'
+      },
+      {
+        id: 'F-0415',
+        idx: 3,
+        severity: 'LOW CONFIDENCE',
+        sevColor: 'var(--muted)',
+        claim: 'Grow your wealth',
+        replacement: 'Build steady wealth',
+        rule: 'Tone Rule T-03 · v1.2',
+        evidence: 'Calm, plain-spoken stewardship guideline',
+        confidence: '0.68 · Tone Check',
+        status: 'pending'
+      }
+    ];
+
+    let wsFindings = JSON.parse(JSON.stringify(initialFindings));
+    let wsSignedOff = false;
+
+    const workspaceModal = document.getElementById('workspaceModal');
+    const wsFindingsList = document.getElementById('wsFindingsList');
+    const wsResolvedCounter = document.getElementById('wsResolvedCounter');
+    const wsProgressFill = document.getElementById('wsProgressFill');
+    const wsApproveBtn = document.getElementById('wsApproveBtn');
+    const wsApproveBtnLabel = document.getElementById('wsApproveBtnLabel');
+    const wsLockIcon = document.getElementById('wsLockIcon');
+    const wsTopStatusPill = document.getElementById('wsTopStatusPill');
+    const wsSidebarPendingBadge = document.getElementById('wsSidebarPendingBadge');
+
+    function renderWorkspace() {
+      const resolvedCount = wsFindings.filter((f) => f.status !== 'pending').length;
+      const total = wsFindings.length;
+      const allResolved = resolvedCount === total;
+
+      // Update draft spans
+      wsFindings.forEach((f) => {
+        const spanEl = document.getElementById(`draftSpan${f.idx}`);
+        if (!spanEl) return;
+        if (f.status === 'accepted' || f.status === 'edited') {
+          spanEl.textContent = f.replacement;
+          spanEl.className = 'hl-span hl-resolved';
+        } else if (f.status === 'dismissed') {
+          spanEl.textContent = f.claim;
+          spanEl.className = 'hl-span hl-tone';
+        } else {
+          spanEl.textContent = f.claim;
+          const origClass =
+            f.idx === 0 ? 'hl-crit' : f.idx === 1 ? 'hl-warn' : f.idx === 2 ? 'hl-verify' : 'hl-tone';
+          spanEl.className = `hl-span ${origClass}`;
+        }
+      });
+
+      // Render finding cards
+      wsFindingsList.innerHTML = '';
+      wsFindings.forEach((f) => {
+        const card = document.createElement('div');
+        card.className = `ws-finding-card ${f.status !== 'pending' ? 'resolved' : ''}`;
+        card.innerHTML = `
+          <div class="ws-fc-head">
+            <span style="color: ${f.sevColor}; font-weight: 700;">${f.severity}</span>
+            <span style="color: var(--muted-2);">${f.id} · ${f.status.toUpperCase()}</span>
+          </div>
+          <div class="ws-fc-claim">“${f.claim}”</div>
+          <div class="ws-fc-meta">
+            <div><strong>Rule/Fact:</strong> ${f.rule}</div>
+            <div><strong>Evidence:</strong> ${f.evidence}</div>
+            <div><strong>Confidence:</strong> ${f.confidence}</div>
+          </div>
+          <div class="ws-fc-actions">
+            ${
+              f.status === 'pending'
+                ? `
+                  <button type="button" class="ws-act-btn accept" data-action="accept" data-id="${f.id}">Accept</button>
+                  <button type="button" class="ws-act-btn" data-action="edit" data-id="${f.id}">Edit</button>
+                  <button type="button" class="ws-act-btn" data-action="dismiss" data-id="${f.id}">Dismiss</button>
+                `
+                : `
+                  <span style="font-family: var(--font-mono); font-size: 11px; color: var(--accent);">
+                    ✓ Resolved (${f.status})
+                  </span>
+                  <button type="button" class="ws-act-btn" data-action="undo" data-id="${f.id}" style="margin-left:auto;">Undo</button>
+                `
+            }
+          </div>
+        `;
+        wsFindingsList.appendChild(card);
+      });
+
+      // Update Lock Bar & Counters
+      wsResolvedCounter.textContent = `${resolvedCount} of ${total} findings resolved`;
+      wsProgressFill.style.width = `${(resolvedCount / total) * 100}%`;
+      wsSidebarPendingBadge.textContent = String(total - resolvedCount);
+
+      if (wsSignedOff) {
+        wsApproveBtn.disabled = false;
+        wsApproveBtn.classList.add('unlocked');
+        wsLockIcon.textContent = '✓';
+        wsApproveBtnLabel.textContent = 'Approved & Signed Off (v3 Locked)';
+        wsTopStatusPill.textContent = 'APPROVED · v3 LOCKED';
+        wsTopStatusPill.classList.add('unlocked');
+      } else if (allResolved) {
+        wsApproveBtn.disabled = false;
+        wsApproveBtn.classList.add('unlocked');
+        wsLockIcon.textContent = '🔓';
+        wsApproveBtnLabel.textContent = 'Approve & Sign Off';
+        wsTopStatusPill.textContent = 'READY FOR SIGN-OFF';
+        wsTopStatusPill.classList.add('unlocked');
+      } else {
+        wsApproveBtn.disabled = true;
+        wsApproveBtn.classList.remove('unlocked');
+        wsLockIcon.textContent = '🔒';
+        wsApproveBtnLabel.textContent = 'Approve & Sign Off';
+        wsTopStatusPill.textContent = 'PUBLISH LOCKED';
+        wsTopStatusPill.classList.remove('unlocked');
+      }
+    }
+
+    // Event delegation for Accept / Edit / Dismiss / Undo
+    wsFindingsList.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      const action = btn.getAttribute('data-action');
+      const id = btn.getAttribute('data-id');
+      const item = wsFindings.find((x) => x.id === id);
+      if (!item) return;
+
+      if (action === 'accept') {
+        item.status = 'accepted';
+      } else if (action === 'edit') {
+        const nextVal = window.prompt('Edit compliant replacement phrase:', item.replacement);
+        if (nextVal && nextVal.trim()) {
+          item.replacement = nextVal.trim();
+          item.status = 'edited';
+        }
+      } else if (action === 'dismiss') {
+        item.status = 'dismissed';
+      } else if (action === 'undo') {
+        item.status = 'pending';
+        wsSignedOff = false;
+      }
+      renderWorkspace();
+    });
+
+    // Diff Toggle Buttons (Original | Suggested Fix | Side-by-Side)
+    const diffBtns = document.querySelectorAll('.ws-toggle-btn');
+    const origPane = document.getElementById('wsDiffOrigPane');
+    const suggPane = document.getElementById('wsDiffSuggPane');
+    const diffGrid = document.getElementById('wsDiffGrid');
+
+    diffBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        diffBtns.forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        const mode = btn.getAttribute('data-diff-mode');
+        if (mode === 'original') {
+          origPane.style.display = 'block';
+          suggPane.style.display = 'none';
+          diffGrid.style.gridTemplateColumns = '1fr';
+        } else if (mode === 'suggested') {
+          origPane.style.display = 'none';
+          suggPane.style.display = 'block';
+          diffGrid.style.gridTemplateColumns = '1fr';
+        } else {
+          origPane.style.display = 'block';
+          suggPane.style.display = 'block';
+          diffGrid.style.gridTemplateColumns = '1fr 1fr';
+        }
+      });
+    });
+
+    // Resolve All & Reset buttons
+    document.getElementById('wsAcceptAllBtn').addEventListener('click', () => {
+      wsFindings.forEach((f) => {
+        if (f.status === 'pending') f.status = 'accepted';
+      });
+      renderWorkspace();
+    });
+
+    document.getElementById('wsResetBtn').addEventListener('click', () => {
+      wsFindings = JSON.parse(JSON.stringify(initialFindings));
+      wsSignedOff = false;
+      renderWorkspace();
+    });
+
+    wsApproveBtn.addEventListener('click', () => {
+      const allResolved = wsFindings.every((f) => f.status !== 'pending');
+      if (!allResolved) return;
+      wsSignedOff = true;
+      document.getElementById('wsAuditCountBadge').textContent = '2';
+      renderWorkspace();
+    });
+
+    // Open / Close Workspace Modal Triggers
+    document.querySelectorAll('[data-open-workspace]').forEach((trigger) => {
+      trigger.addEventListener('click', () => {
+        workspaceModal.classList.add('open');
+        workspaceModal.setAttribute('aria-hidden', 'false');
+        if (lenis) lenis.stop();
+      });
+    });
+
+    document.getElementById('closeWorkspaceBtn').addEventListener('click', () => {
+      workspaceModal.classList.remove('open');
+      workspaceModal.setAttribute('aria-hidden', 'true');
+      if (lenis) lenis.start();
+    });
+
+    renderWorkspace();
+  </script>
+</body>
+</html>
