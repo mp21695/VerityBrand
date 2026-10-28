@@ -21,11 +21,13 @@ from backend.app.models import Brand, Rule, Fact, Draft, DraftVersion, Finding, 
 from backend.app.workers.tasks import run_analysis_pipeline
 from backend.app.audit import verify_chain_integrity
 from backend.app.routers.findings import take_finding_action
-from backend.app.routers.drafts import approve_draft
+from backend.app.routers.drafts import approve_draft, reset_demo_draft
 from backend.app.schemas import ReviewActionCreate
 
 def run_evaluation():
     db = SessionLocal()
+    # Ensure fresh golden demo state for idempotent evaluation
+    reset_demo_draft(db)
     print("=" * 70)
     print(" VERITYBRAND ROUND 2 EVALUATION & EXIT GATE RUNNER")
     print("=" * 70)
