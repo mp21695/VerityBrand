@@ -11,12 +11,20 @@ env/
 
 # Node / Next.js
 node_modules/
+/node_modules
 VerityBrand-main/node_modules/
 VerityBrand-main/.next/
 .next/
+/.next/
 out/
+/out/
 build/
+/build
 dist/
+/.pnp
+.pnp.js
+*.tsbuildinfo
+next-env.d.ts
 
 # Logs
 *.log
@@ -26,6 +34,7 @@ yarn-error.log*
 
 # Environment files
 .env
+.env*.local
 .env.local
 .env.development.local
 .env.test.local
@@ -34,5 +43,10 @@ yarn-error.log*
 # OS & Editor files
 .DS_Store
 Thumbs.db
+*.pem
 .vscode/
 .idea/
+
+# Large media files
+*.mp4
+
