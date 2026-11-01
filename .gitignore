@@ -26,4 +26,8 @@ next-env.d.ts
 *.sqlite
 __pycache__/
 *.py[cod]
-.pytest_cache/
+# local reference docs
+VERITYBRAND_PRODUCT_DOCUMENTATION.md
+*.doc
+*.docx
+
