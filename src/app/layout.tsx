@@ -1,29 +1,51 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { DM_Sans, Libre_Baskerville, Fragment_Mono } from "next/font/google";
+import { MotionProvider } from "@/components/motion/MotionProvider";
 import "./globals.css";
 
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-dm-sans",
+  display: "swap",
+});
+
+const libreBaskerville = Libre_Baskerville({
+  subsets: ["latin"],
+  weight: ["400"],
+  style: ["normal", "italic"],
+  variable: "--font-libre-baskerville",
+  display: "swap",
+});
+
+const fragmentMono = Fragment_Mono({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-fragment-mono",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
-  title: "VerityBrand — Every Claim Grounded",
+  title: {
+    default: "VerityBrand — Evidence-backed AI for brand governance",
+    template: "%s · VerityBrand",
+  },
   description:
-    "VerityBrand checks content against approved rules, verifies claims against traceable sources, and asks a human before anything goes live.",
+    "Find flaws, verify claims, explain every finding, and move approved content safely toward publication. AI proposes. Humans decide.",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export const viewport: Viewport = {
+  themeColor: "#0e231a",
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className="font-sans antialiased bg-obsidian text-cannoli min-h-screen">
-        {children}
+    <html
+      lang="en"
+      className={`${dmSans.variable} ${libreBaskerville.variable} ${fragmentMono.variable}`}
+    >
+      <body>
+        <MotionProvider>{children}</MotionProvider>
       </body>
     </html>
   );

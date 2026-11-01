@@ -20,5 +20,10 @@ next-env.d.ts
 .env*.local
 .env
 
-# reference video
-20261027-1501-24.6992975.mp4
+# media & database
+*.mp4
+*.db
+*.sqlite
+__pycache__/
+*.py[cod]
+.pytest_cache/
