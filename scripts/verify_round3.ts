@@ -5,7 +5,7 @@ import {
   unresolvedCount,
   verifyChain,
   shortHash,
-} from "../src/lib/review/index-internal.ts";
+} from "../src/lib/review/index-internal";
 
 console.log("==================================================================");
 console.log("VERITYBRAND — ROUND 3 FEATURES VERIFICATION SUITE");
