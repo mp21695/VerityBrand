@@ -56,26 +56,8 @@ export default function Home() {
 
       {/* Dedicated Full Review Workspace Drawer / Modal when clicked */}
       {showWorkspaceModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-md">
-          <div className="relative min-h-screen bg-[#eee9dc]">
-            <div className="sticky top-0 z-50 bg-[#1c1a18] text-white px-6 py-4 flex items-center justify-between border-b border-white/10 shadow-lg">
-              <div className="flex items-center gap-3">
-                <span className="font-serif italic text-2xl">VerityBrand</span>
-                <span className="text-xs font-mono bg-white/10 px-2.5 py-0.5 rounded-full text-white/80">
-                  Interactive Governance Workspace
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowWorkspaceModal(false)}
-                className="px-4 py-2 rounded-full border border-white/20 text-xs font-mono uppercase tracking-wider hover:bg-white hover:text-black transition-all"
-              >
-                ✕ Close Workspace
-              </button>
-            </div>
-
-            <ReviewWorkspace onBackToLanding={() => setShowWorkspaceModal(false)} />
-          </div>
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-[#eee9dc]">
+          <ReviewWorkspace onBackToLanding={() => setShowWorkspaceModal(false)} />
         </div>
       )}
     </div>

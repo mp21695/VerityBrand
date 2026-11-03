@@ -28,6 +28,7 @@ import {
   type Rule,
   type Fact,
   analyzeAnyContent,
+  verifyChain,
 } from "@/lib/review";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -35,11 +36,72 @@ interface WorkspaceProps {
   onBackToLanding?: () => void;
 }
 
-export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
-  const [state, dispatch] = useReducer(reviewReducer, undefined, createInitialReviewState);
-  const [activeTab, setActiveTab] = useState<"workspace" | "brain" | "queue" | "insights" | "audit">("workspace");
+// Demo Credentials Mapping per user specifications
+export const DEMO_CREDENTIALS: Record<
+  Role,
+  { email: string; pass: string; name: string; title: string; subtitle: string; hint: string; badge: string; accentColor: string }
+> = {
+  creator: {
+    email: "creator@veritybrand.demo",
+    pass: "creator123",
+    name: "Riya Sharma",
+    title: "Creator Login",
+    subtitle: "Access your campaigns, drafts and submissions.",
+    hint: "creator@veritybrand.demo / creator123",
+    badge: "Campaign Creator",
+    accentColor: "from-amber-600/20 to-amber-500/10 border-amber-500/40 text-amber-800",
+  },
+  reviewer: {
+    email: "reviewer@veritybrand.demo",
+    pass: "reviewer123",
+    name: "Arjun Verma",
+    title: "Reviewer Login",
+    subtitle: "Access your review queue and evidence-linked findings.",
+    hint: "reviewer@veritybrand.demo / reviewer123",
+    badge: "Brand Reviewer",
+    accentColor: "from-indigo-600/20 to-indigo-500/10 border-indigo-500/40 text-indigo-800",
+  },
+  approver: {
+    email: "approver@veritybrand.demo",
+    pass: "approver123",
+    name: "Priya Sundaram",
+    title: "Compliance Approver Login",
+    subtitle: "Access campaigns awaiting final approval.",
+    hint: "approver@veritybrand.demo / approver123",
+    badge: "SEBI Compliance Approver",
+    accentColor: "from-emerald-600/20 to-emerald-500/10 border-emerald-500/40 text-emerald-800",
+  },
+  admin: {
+    email: "admin@veritybrand.demo",
+    pass: "admin123",
+    name: "Harini Nair",
+    title: "Admin Login",
+    subtitle: "Access governance configuration and system controls.",
+    hint: "admin@veritybrand.demo / admin123",
+    badge: "Governance Administrator",
+    accentColor: "from-blue-600/20 to-blue-500/10 border-blue-500/40 text-blue-800",
+  },
+};
 
-  // Format Switcher inside Review Studio: text | image | document
+export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
+  // Shared Campaign State across all roles
+  const [state, dispatch] = useReducer(reviewReducer, undefined, createInitialReviewState);
+
+  // Authentication State
+  const [authenticatedRole, setAuthenticatedRole] = useState<Role | null>(null);
+  const [selectedPersonaForLogin, setSelectedPersonaForLogin] = useState<Role | null>(null);
+  const [loginEmail, setLoginEmail] = useState<string>("");
+  const [loginPassword, setLoginPassword] = useState<string>("");
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [showPersonaDropdown, setShowPersonaDropdown] = useState<boolean>(false);
+
+  // Role-Specific Navigation Tabs
+  const [creatorTab, setCreatorTab] = useState<"overview" | "campaigns" | "drafts" | "guidelines" | "sources">("overview");
+  const [reviewerTab, setReviewerTab] = useState<"queue" | "review" | "all_campaigns" | "findings" | "decisions">("queue");
+  const [approverTab, setApproverTab] = useState<"approval_queue" | "active_review" | "blocked" | "certificates" | "audit">("approval_queue");
+  const [adminTab, setAdminTab] = useState<"overview" | "brand_brain" | "facts" | "terminology" | "insights" | "audit_logs" | "users">("overview");
+
+  // Format Switcher inside Review/Draft Studio: text | image | document
   const [currentFormat, setCurrentFormat] = useState<"text" | "image" | "document">("text");
 
   // Interaction State for resolution
@@ -48,15 +110,14 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
   const [dismissReason, setDismissReason] = useState<string>("");
   const [showDismissModal, setShowDismissModal] = useState<boolean>(false);
 
-  // New Content / Live Scan Modal State
+  // New Content / Live Scan Modal State (Creator action)
   const [showScanModal, setShowScanModal] = useState<boolean>(false);
   const [scanPreset, setScanPreset] = useState<"agency" | "marketing" | "custom">("agency");
   const [customInputText, setCustomInputText] = useState<string>(
     "Build steady wealth with guaranteed 15% returns from Arthaa Gold Savings Fund! India's #1 fund beating 99% of peers. Hurry up, start a SIP and enjoy zero risk profits!"
   );
 
-  // Brand Brain Sub-tabs: rules | facts | glossary | assets
-  const [brainSubTab, setBrainSubTab] = useState<"rules" | "facts" | "glossary" | "assets">("rules");
+  // Brand Brain Sub-tabs / Creation Modals (Admin action)
   const [allRules, setAllRules] = useState<Rule[]>(RULES);
   const [allFacts, setAllFacts] = useState<Fact[]>(FACTS);
   const [showAddRuleModal, setShowAddRuleModal] = useState<boolean>(false);
@@ -73,11 +134,42 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
   const [showPrivacyModal, setShowPrivacyModal] = useState<boolean>(false);
 
   const selectedFinding = state.findings.find((f) => f.id === state.selectedId) || state.findings[0];
-  const roleProfile = ROLES[state.role];
+  const roleProfile = authenticatedRole ? ROLES[authenticatedRole] : ROLES["creator"];
   const openCount = unresolvedCount(state.findings);
   const isApproved = state.phase === "approved";
 
-  // Handlers
+  // Login handler
+  const handleOpenLogin = (role: Role) => {
+    setSelectedPersonaForLogin(role);
+    setLoginEmail(DEMO_CREDENTIALS[role].email);
+    setLoginPassword(DEMO_CREDENTIALS[role].pass);
+    setLoginError(null);
+  };
+
+  const handleSignIn = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPersonaForLogin) return;
+    const creds = DEMO_CREDENTIALS[selectedPersonaForLogin];
+
+    if (
+      loginEmail.trim().toLowerCase() === creds.email.toLowerCase() &&
+      loginPassword.trim() === creds.pass
+    ) {
+      setAuthenticatedRole(selectedPersonaForLogin);
+      dispatch({ type: "set_role", role: selectedPersonaForLogin });
+      setSelectedPersonaForLogin(null);
+      setLoginError(null);
+      setShowPersonaDropdown(false);
+    } else {
+      setLoginError(`Invalid credentials. Demo login: ${creds.email} / ${creds.pass}`);
+    }
+  };
+
+  const handleSignOut = () => {
+    setAuthenticatedRole(null);
+    setShowPersonaDropdown(false);
+  };
+
   const handleSelectFinding = (id: string) => {
     dispatch({ type: "select", id });
     setIsEditingFix(false);
@@ -102,6 +194,7 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
   };
 
   const handleApprove = () => {
+    if (authenticatedRole !== "approver" && authenticatedRole !== "admin") return;
     dispatch({ type: "approve", at: new Date().toISOString() });
   };
 
@@ -110,57 +203,12 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
     const newComment: ReviewComment = {
       id: `CMT-${String(comments.length + 1).padStart(2, "0")}`,
       author: roleProfile.person,
-      role: state.role,
+      role: authenticatedRole || "creator",
       at: new Date().toISOString(),
       text: newCommentText.trim(),
     };
     setComments((prev) => [...prev, newComment]);
     setNewCommentText("");
-  };
-
-  const handleFormatChange = (fmt: "text" | "image" | "document") => {
-    setCurrentFormat(fmt);
-    if (fmt === "text") {
-      const textPreset = FORMAT_PRESETS.text;
-      const findings = analyzeAnyContent(textPreset.text, "text");
-      dispatch({
-        type: "submit_custom_draft",
-        draft: textPreset,
-        findings,
-        at: new Date().toISOString(),
-      });
-    } else if (fmt === "image") {
-      const imgPreset = FORMAT_PRESETS.image;
-      const findings = analyzeAnyContent(imgPreset.text, "image", {
-        altText: imgPreset.altText,
-        contrastRatio: imgPreset.contrastRatio,
-      });
-      dispatch({
-        type: "submit_custom_draft",
-        draft: {
-          id: imgPreset.id,
-          title: imgPreset.title,
-          brand: imgPreset.brand,
-          campaign: imgPreset.campaign,
-          channel: imgPreset.channel,
-          author: imgPreset.author,
-          submittedAt: imgPreset.submittedAt,
-          version: imgPreset.version,
-          text: imgPreset.text,
-        },
-        findings,
-        at: new Date().toISOString(),
-      });
-    } else if (fmt === "document") {
-      const docPreset = FORMAT_PRESETS.document;
-      const findings = analyzeAnyContent(docPreset.text, "document");
-      dispatch({
-        type: "submit_custom_draft",
-        draft: docPreset,
-        findings,
-        at: new Date().toISOString(),
-      });
-    }
   };
 
   const handleRunLiveScan = () => {
@@ -186,6 +234,8 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
     });
     setShowScanModal(false);
     setCurrentFormat("text");
+    if (authenticatedRole === "creator") setCreatorTab("drafts");
+    if (authenticatedRole === "reviewer") setReviewerTab("review");
   };
 
   const handleCreateRule = () => {
@@ -223,1404 +273,1824 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
   };
 
   return (
-    <section id="workspace" className="min-h-screen bg-background text-text-primary pt-24 pb-20">
-      <div className="container-x">
-        {/* Workspace Top Header & Navigation Bar */}
-        <div className="bg-surface rounded-2xl p-5 border border-border mb-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            {onBackToLanding && (
-              <button
-                onClick={onBackToLanding}
-                className="text-xs uppercase font-mono tracking-wider text-brand-green hover:underline flex items-center gap-1"
-              >
-                ← Public Site
-              </button>
-            )}
-            <h2 className="font-serif italic text-2xl text-text-primary">
-              Review Workspace
-            </h2>
-            <span className="text-xs font-mono bg-surface-muted px-2.5 py-0.5 rounded-full text-text-secondary">
-              {state.draft.brand} · v{state.draft.version}
-            </span>
-
-            {/* Privacy & AI Disclosure Trigger */}
-            <button
-              onClick={() => setShowPrivacyModal(true)}
-              className="text-[11px] font-mono px-2.5 py-1 rounded-full bg-surface-muted hover:bg-background-soft border border-border/80 text-text-muted hover:text-text-primary transition-colors flex items-center gap-1.5"
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-success inline-block" />
-              Sovereign AI Protocol
-            </button>
-          </div>
-
-          {/* Interactive Role Switcher */}
-          <div className="flex items-center gap-2 self-stretch md:self-auto justify-between md:justify-end">
-            <span className="text-xs font-mono text-text-muted mr-1 hidden sm:inline">Active Persona:</span>
-            <div className="flex items-center bg-background-soft rounded-full p-1 border border-border">
-              {ROLE_ORDER.map((r) => {
-                const p = ROLES[r];
-                const active = state.role === r;
-                return (
-                  <button
-                    key={r}
-                    onClick={() => dispatch({ type: "set_role", role: r })}
-                    className={`text-xs px-3 py-1 rounded-full transition-all duration-200 font-sans ${
-                      active
-                        ? "bg-brand-green text-on-dark font-medium shadow-xs"
-                        : "text-text-muted hover:text-text-primary"
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* View Tabs */}
-        <div className="flex items-center justify-between border-b border-border/80 pb-2 mb-6 overflow-x-auto gap-4">
+    <section id="workspace" className="min-h-screen bg-[#eee9dc] text-[#1c1a18]">
+      {/* ──────────────────────────────────────────────────────────────────────────
+          TOP APPLICATION BAR (Consistent SaaS Navigation)
+      ────────────────────────────────────────────────────────────────────────── */}
+      <header className="sticky top-0 z-40 bg-[#1c1a18] text-white px-5 sm:px-8 py-3.5 border-b border-white/10 flex items-center justify-between shadow-md">
+        <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            {[
-              { id: "workspace", label: "Review Studio" },
-              { id: "brain", label: "Brand Brain (Guidelines, Facts, Assets)" },
-              { id: "queue", label: "Review Queue" },
-              { id: "insights", label: "Governance Insights" },
-              { id: "audit", label: "SHA-256 Audit Trail" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`text-xs uppercase tracking-wider font-mono px-4 py-2 rounded-t-lg transition-colors whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? "bg-surface text-brand-green font-semibold border-t border-x border-border border-b-2 border-b-surface"
-                    : "text-text-muted hover:text-text-primary"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+            <span className="font-serif italic text-2xl tracking-tight text-white">VerityBrand</span>
+            <span className="hidden sm:inline-block text-[11px] font-mono uppercase bg-white/10 px-2 py-0.5 rounded text-white/70">
+              Governance Studio
+            </span>
           </div>
 
-          {/* Action button: Scan New Content */}
-          <button
-            onClick={() => setShowScanModal(true)}
-            className="text-xs font-mono uppercase px-3.5 py-1.5 rounded-pill bg-brand-green text-on-dark hover:bg-brand-green-dark transition-colors whitespace-nowrap font-medium shadow-xs flex items-center gap-1.5"
-          >
-            <span>+</span> Scan New Content
-          </button>
+          {authenticatedRole && (
+            <div className="hidden md:flex items-center gap-2 pl-4 border-l border-white/10 text-xs text-white/70 font-mono">
+              <span>Campaign: <strong className="text-white font-medium">{state.draft.campaign}</strong></span>
+              <span>·</span>
+              <span className={`px-2 py-0.5 rounded text-[11px] ${isApproved ? "bg-emerald-950 text-emerald-400" : openCount === 0 ? "bg-amber-950 text-amber-300" : "bg-red-950 text-red-300"}`}>
+                {isApproved ? "Approved & Sealed" : openCount === 0 ? "Ready for Sign-Off" : `${openCount} Open Finding${openCount > 1 ? "s" : ""}`}
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* TAB 1: Main Review Studio */}
-        {activeTab === "workspace" && (
-          <div className="space-y-6">
-            {/* Multi-Format Selector Bar */}
-            <div className="bg-surface rounded-xl p-3 border border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-mono uppercase tracking-wider text-text-muted mr-2">
-                  Content Format:
-                </span>
-                <button
-                  onClick={() => handleFormatChange("text")}
-                  className={`text-xs font-mono px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
-                    currentFormat === "text"
-                      ? "bg-brand-green text-on-dark font-medium"
-                      : "bg-background-soft text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>📝</span> Marketing Copy
-                </button>
-                <button
-                  onClick={() => handleFormatChange("image")}
-                  className={`text-xs font-mono px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
-                    currentFormat === "image"
-                      ? "bg-brand-green text-on-dark font-medium"
-                      : "bg-background-soft text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>🎨</span> Visual Banner & WCAG
-                </button>
-                <button
-                  onClick={() => handleFormatChange("document")}
-                  className={`text-xs font-mono px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
-                    currentFormat === "document"
-                      ? "bg-brand-green text-on-dark font-medium"
-                      : "bg-background-soft text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  <span>📄</span> Factsheet PDF & Claims
-                </button>
-              </div>
+        <div className="flex items-center gap-3">
+          {/* Privacy Protocol Pill */}
+          <button
+            onClick={() => setShowPrivacyModal(true)}
+            className="text-[11px] font-mono px-3 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/15 text-white/80 transition-colors flex items-center gap-1.5"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="hidden sm:inline">Sovereign Protocol</span>
+          </button>
 
-              {/* Toggle Team Discussion Drawer */}
+          {/* Authenticated Persona Indicator & Dropdown Switcher */}
+          {authenticatedRole ? (
+            <div className="relative">
               <button
-                onClick={() => setShowCommentsDrawer(!showCommentsDrawer)}
-                className={`text-xs font-mono px-3 py-1.5 rounded-lg border border-border transition-colors flex items-center gap-1.5 ${
-                  showCommentsDrawer ? "bg-surface-muted text-brand-green font-medium" : "text-text-muted hover:text-text-primary"
-                }`}
+                type="button"
+                onClick={() => setShowPersonaDropdown(!showPersonaDropdown)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-mono text-white transition-all"
               >
-                <span>💬</span> Team Notes ({comments.length})
+                <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                <span className="font-semibold">{DEMO_CREDENTIALS[authenticatedRole].name}</span>
+                <span className="text-white/60">({ROLES[authenticatedRole].label})</span>
+                <span className="text-[10px]">▾</span>
               </button>
-            </div>
 
-            {/* Main 3-Area Studio Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              {/* Left Column: Draft Content Display (Text / Image / Document) */}
-              <div className="lg:col-span-7 space-y-6">
-                {/* Content Box */}
-                <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border shadow-xs">
-                  <div className="flex items-center justify-between pb-4 border-b border-border/60 mb-6">
-                    <div>
-                      <h3 className="text-sm font-semibold text-text-primary">
-                        {state.draft.title}
-                      </h3>
-                      <p className="text-xs text-text-muted mt-0.5">
-                        Author: {state.draft.author} · {state.draft.channel}
-                      </p>
+              {/* Persona Switcher Dropdown */}
+              <AnimatePresence>
+                {showPersonaDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 8 }}
+                    className="absolute right-0 mt-2 w-64 bg-surface rounded-2xl border border-border shadow-2xl p-2 z-50 text-text-primary"
+                  >
+                    <div className="p-2.5 border-b border-border/80">
+                      <span className="text-[10px] uppercase font-mono text-text-muted block">Signed In As</span>
+                      <p className="text-xs font-semibold text-text-primary">{DEMO_CREDENTIALS[authenticatedRole].name}</p>
+                      <p className="text-[11px] font-mono text-brand-green">{ROLES[authenticatedRole].label}</p>
                     </div>
 
-                    <span
-                      className={`text-xs font-mono uppercase px-3 py-1 rounded-full ${
-                        isApproved
-                          ? "bg-success-soft text-success font-medium"
-                          : openCount === 0
-                          ? "bg-brand-pink-soft text-brand-pink font-medium"
-                          : "bg-warning-soft text-warning font-medium"
-                      }`}
-                    >
-                      {isApproved
-                        ? "Certified & Approved"
-                        : openCount === 0
-                        ? "Ready For Sign-Off"
-                        : `${openCount} Open Issue${openCount > 1 ? "s" : ""}`}
-                    </span>
-                  </div>
-
-                  {/* FORMAT 1: Text Copy with Interactive marked spans */}
-                  {currentFormat === "text" && (
-                    <div>
-                      <div className="relative text-lg sm:text-xl font-serif leading-relaxed text-text-primary p-4 rounded-xl bg-background-soft border border-border/60 min-h-36">
-                        {segmentText(state.draft.text, state.findings).map((seg, idx) => {
-                          if (!seg.finding) {
-                            return <span key={idx}>{seg.text}</span>;
-                          }
-
-                          const f = seg.finding;
-                          const isSelected = f.id === state.selectedId;
-                          const tone = KIND_META[f.kind].tone;
-                          const resolved = f.status !== "open";
-
-                          return (
-                            <button
-                              type="button"
-                              key={idx}
-                              onClick={() => handleSelectFinding(f.id)}
-                              className={`mark-span text-left inline-block cursor-pointer ${
-                                isSelected
-                                  ? TONE_CLASSES[tone].markActive
-                                  : TONE_CLASSES[tone].mark
-                              } ${
-                                resolved
-                                  ? "opacity-60 line-through decoration-text-muted"
-                                  : ""
-                              }`}
-                            >
-                              {f.phrase}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Intent-Preserving Live Diff Preview */}
-                      <div className="mt-6 pt-6 border-t border-border">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs uppercase font-mono tracking-wider text-brand-green font-semibold">
-                            Intent-Preserving Live Proposal:
-                          </span>
-                          <span className="text-xs font-mono text-text-muted">
-                            {state.findings.filter((f) => f.status !== "open").length} / {state.findings.length} resolved
-                          </span>
-                        </div>
-
-                        <p className="text-base font-serif italic text-text-primary p-4 rounded-xl bg-surface-muted/40 border border-border/80">
-                          {revisedText(state.draft, state.findings)}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* FORMAT 2: Visual Banner & WCAG Accessibility Analyzer */}
-                  {currentFormat === "image" && (
-                    <div className="space-y-6">
-                      <div className="relative rounded-xl overflow-hidden border border-border bg-background-soft aspect-square max-h-[380px] mx-auto flex items-center justify-center">
-                        <Image
-                          src="/images/cap-fixes.jpg"
-                          alt="Campaign Creative Visual Asset"
-                          fill
-                          className="object-cover"
-                        />
-                        {/* Interactive Diagnostic Overlays */}
-                        <div className="absolute inset-0 bg-black/25 flex flex-col justify-between p-4">
-                          <div className="flex items-center justify-between">
-                            <span className="bg-critical/90 backdrop-blur-md text-on-dark text-[11px] font-mono px-2.5 py-1 rounded-full border border-white/20">
-                              ⚠️ Contrast: 2.8:1 (WCAG AA FAILS)
-                            </span>
-                            <span className="bg-warning/90 backdrop-blur-md text-on-dark text-[11px] font-mono px-2.5 py-1 rounded-full border border-white/20">
-                              ⚠️ Alt-Text Missing
-                            </span>
-                          </div>
-
-                          <div className="bg-surface/95 backdrop-blur-md p-3 rounded-lg border border-border text-xs">
-                            <div className="flex items-center justify-between text-text-primary font-medium mb-1">
-                              <span>Overlay Text: &quot;Guaranteed wealth growth&quot;</span>
-                              <span className="text-critical font-mono">Flagged R-07</span>
-                            </div>
-                            <p className="text-[11px] text-text-muted">
-                              Visual standard V-04 requires 4.5:1 text-to-background contrast and 24px logo margin.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Visual & Accessibility Diagnostics Table */}
-                      <div className="grid grid-cols-2 gap-3 text-xs">
-                        <div className="p-3 bg-background-soft rounded-xl border border-border">
-                          <span className="text-text-muted block text-[11px] font-mono uppercase mb-0.5">Color Palette Check</span>
-                          <span className="font-semibold text-text-primary flex items-center gap-1.5">
-                            <span className="h-3 w-3 rounded-full bg-[#c26043] inline-block" />
-                            Primary Terracotta Token Passed
-                          </span>
-                        </div>
-                        <div className="p-3 bg-background-soft rounded-xl border border-border">
-                          <span className="text-text-muted block text-[11px] font-mono uppercase mb-0.5">Logo Clearspace</span>
-                          <span className="font-semibold text-text-primary">24px Safe Padding Verified</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* FORMAT 3: Factsheet PDF & Claims Extraction */}
-                  {currentFormat === "document" && (
-                    <div className="space-y-4">
-                      <div className="p-4 bg-background-soft rounded-xl border border-border space-y-3">
-                        <div className="flex items-center justify-between pb-2 border-b border-border/60">
-                          <span className="text-xs font-mono uppercase text-brand-green font-semibold">
-                            Audited Document Claims vs Fact Ledger
-                          </span>
-                          <span className="text-xs font-mono text-text-muted">pgvector Match 99.2%</span>
-                        </div>
-
-                        <div className="space-y-2 text-xs">
-                          <div className="flex items-center justify-between p-2 rounded-lg bg-surface border border-border/60">
-                            <div>
-                              <span className="font-semibold text-text-primary block">Reported AUM Metric</span>
-                              <span className="text-text-muted font-mono">Document states: ₹4,200 crore</span>
-                            </div>
-                            <span className="bg-warning-soft text-warning px-2.5 py-1 rounded-full font-mono text-[11px]">
-                              Expired (Audited v2 is ₹4,850 Cr)
-                            </span>
-                          </div>
-
-                          <div className="flex items-center justify-between p-2 rounded-lg bg-surface border border-border/60">
-                            <div>
-                              <span className="font-semibold text-text-primary block">Total Expense Ratio (TER)</span>
-                              <span className="text-text-muted font-mono">Document states: 0.65%</span>
-                            </div>
-                            <span className="bg-success-soft text-success px-2.5 py-1 rounded-full font-mono text-[11px]">
-                              Verified SEBI Compliant
-                            </span>
-                          </div>
-
-                          <div className="flex items-center justify-between p-2 rounded-lg bg-surface border border-border/60">
-                            <div>
-                              <span className="font-semibold text-text-primary block">Statutory Riskometer Graphic</span>
-                              <span className="text-text-muted font-mono">Document classification: High</span>
-                            </div>
-                            <span className="bg-success-soft text-success px-2.5 py-1 rounded-full font-mono text-[11px]">
-                              Verified Consistent
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Team Discussion & Collaboration Thread Drawer */}
-                <AnimatePresence>
-                  {showCommentsDrawer && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="bg-surface rounded-2xl p-6 border border-border shadow-xs space-y-4"
-                    >
-                      <div className="flex items-center justify-between pb-3 border-b border-border">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-text-primary">
-                            Reviewer Collaboration & Audit Thread
-                          </h4>
-                          <span className="text-xs font-mono bg-surface-muted px-2 py-0.5 rounded-full text-text-muted">
-                            {comments.length} notes
-                          </span>
-                        </div>
-                        <span className="text-xs text-text-muted font-mono">Role: {roleProfile.label}</span>
-                      </div>
-
-                      {/* Comment List */}
-                      <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
-                        {comments.map((cmt) => (
-                          <div key={cmt.id} className="p-3 bg-background-soft rounded-xl border border-border/60 text-xs">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="font-semibold text-text-primary">
-                                {cmt.author} <span className="text-text-muted font-normal font-mono">({cmt.role})</span>
-                              </span>
-                              <span className="text-[11px] font-mono text-text-muted">
-                                {cmt.at.slice(11, 16)}
-                              </span>
-                            </div>
-                            <p className="text-text-secondary leading-relaxed">{cmt.text}</p>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Post Comment Input */}
-                      <div className="flex gap-2 pt-2">
-                        <input
-                          type="text"
-                          value={newCommentText}
-                          onChange={(e) => setNewCommentText(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && handlePostComment()}
-                          placeholder={`Add note as ${roleProfile.label}...`}
-                          className="flex-1 text-xs px-3.5 py-2 rounded-xl bg-background border border-border focus:outline-none focus:border-brand-green"
-                        />
-                        <button
-                          type="button"
-                          onClick={handlePostComment}
-                          disabled={!newCommentText.trim()}
-                          className="text-xs font-mono uppercase px-4 py-2 rounded-xl bg-brand-green text-on-dark font-medium hover:bg-brand-green-dark transition-colors disabled:opacity-40"
-                        >
-                          Post
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* Hard-Gated Approval Lock Widget */}
-                <div
-                  className={`rounded-2xl p-6 border transition-all duration-300 ${
-                    isApproved
-                      ? "bg-[#0e231a] text-on-dark border-brand-green shadow-md"
-                      : openCount === 0
-                      ? "bg-surface border-brand-green shadow-xs"
-                      : "bg-surface/50 border-border opacity-85"
-                  }`}
-                >
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span
-                          className={`h-2 w-2 rounded-full ${
-                            isApproved
-                              ? "bg-success"
-                              : openCount === 0
-                              ? "bg-brand-pink"
-                              : "bg-warning"
-                          }`}
-                        />
-                        <h4 className="font-semibold text-sm">
-                          {isApproved
-                            ? "Cryptographic Approval Certificate Issued"
-                            : openCount === 0
-                            ? "All Findings Resolved — Ready for Sign-Off"
-                            : `Approval Locked (${openCount} issue${openCount > 1 ? "s" : ""} open)`}
-                        </h4>
-                      </div>
-
-                      <p className="text-xs text-text-muted max-w-md">
-                        {isApproved
-                          ? `Certified by ${state.approval?.approvedBy} (${state.approval?.role}). Sealed hash: ${shortHash(state.approval?.contentHash || "")}`
-                          : openCount === 0
-                          ? roleProfile.can.approve
-                            ? "As Compliance Approver, you can sign and lock this approved copy version."
-                            : "Switch to Compliance Approver or Admin to sign the final audit certificate."
-                          : "In accordance with governance policy, unreviewed findings strictly forbid publishing."}
-                      </p>
-                    </div>
-
-                    {!isApproved && openCount === 0 && (
-                      <button
-                        type="button"
-                        disabled={!roleProfile.can.approve}
-                        onClick={handleApprove}
-                        className="px-6 py-3 rounded-pill bg-brand-green text-on-dark text-xs uppercase font-semibold tracking-wider hover:bg-brand-green-dark transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
-                      >
-                        Sign & Lock Approval
-                      </button>
-                    )}
-
-                    {isApproved && (
-                      <span className="text-xs font-mono uppercase bg-success-soft text-success px-3 py-1.5 rounded-full font-semibold">
-                        {state.approval?.certificateId}
+                    <div className="py-1">
+                      <span className="text-[10px] uppercase font-mono text-text-muted px-2.5 py-1 block">
+                        Switch Persona (Auth Required)
                       </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column: Selected Finding Resolution Panel */}
-              <div className="lg:col-span-5">
-                <div className="bg-surface rounded-2xl p-6 sm:p-7 border border-border shadow-xs sticky top-28">
-                  {selectedFinding ? (
-                    <div className="space-y-6">
-                      {/* Header */}
-                      <div className="flex items-center justify-between pb-3 border-b border-border/80">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`text-xs font-mono uppercase px-2.5 py-0.5 rounded-full ${
-                              TONE_CLASSES[KIND_META[selectedFinding.kind].tone].chip
+                      {ROLE_ORDER.map((r) => {
+                        const isCurrent = r === authenticatedRole;
+                        return (
+                          <button
+                            key={r}
+                            onClick={() => {
+                              setShowPersonaDropdown(false);
+                              if (!isCurrent) handleOpenLogin(r);
+                            }}
+                            className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between transition-colors ${
+                              isCurrent ? "bg-background-soft font-semibold text-brand-green" : "hover:bg-background-soft text-text-secondary"
                             }`}
                           >
-                            {KIND_META[selectedFinding.kind].label}
-                          </span>
-                          <span className="text-xs font-mono text-text-muted">
-                            {selectedFinding.severity.toUpperCase()}
-                          </span>
-                        </div>
+                            <span>{ROLES[r].label}</span>
+                            <span className="text-[11px] font-mono text-text-muted">{DEMO_CREDENTIALS[r].name.split(" ")[0]}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
 
-                        <span
-                          className={`text-xs font-mono uppercase ${
-                            selectedFinding.status === "open"
-                              ? "text-warning font-semibold"
-                              : "text-success font-semibold"
-                          }`}
+                    <div className="pt-1 border-t border-border/80">
+                      <button
+                        onClick={handleSignOut}
+                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-critical hover:bg-critical-soft/30 font-medium transition-colors"
+                      >
+                        Sign Out
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ) : (
+            <span className="text-xs font-mono text-white/60">Not Authenticated</span>
+          )}
+
+          {/* Close / Return button */}
+          {onBackToLanding && (
+            <button
+              onClick={onBackToLanding}
+              className="px-3.5 py-1.5 rounded-full border border-white/20 text-xs font-mono uppercase tracking-wider hover:bg-white hover:text-black transition-all"
+            >
+              ✕ Exit
+            </button>
+          )}
+        </div>
+      </header>
+
+      {/* ──────────────────────────────────────────────────────────────────────────
+          STAGE 1: NEUTRAL WORKSPACE ENTRY (Shown prior to authentication)
+      ────────────────────────────────────────────────────────────────────────── */}
+      {!authenticatedRole && (
+        <div className="h-[calc(100vh-61px)] flex flex-col justify-between px-4 sm:px-8 py-4 sm:py-6 max-w-7xl mx-auto overflow-hidden">
+          {/* Header directly below navbar without RBAC tag */}
+          <div className="text-center pt-1 sm:pt-2">
+            <h1 className="font-serif italic text-2xl sm:text-3xl lg:text-[2.25rem] text-text-primary tracking-tight">
+              Welcome to VerityBrand Workspace
+            </h1>
+            <p className="text-xs sm:text-sm text-text-secondary mt-1.5 max-w-2xl mx-auto">
+              Select your role to access your workspace. Each persona provides tailored tools, permissions, and dashboards aligned with corporate brand governance.
+            </p>
+          </div>
+
+          {/* Four Persona Entry Cards (Single row on desktop, fits screen without scroll) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 my-auto">
+            {ROLE_ORDER.map((r) => {
+              const creds = DEMO_CREDENTIALS[r];
+              const p = ROLES[r];
+
+              return (
+                <div
+                  key={r}
+                  onClick={() => handleOpenLogin(r)}
+                  className="group bg-surface rounded-2xl p-5 border border-border hover:border-brand-green shadow-xs hover:shadow-lg transition-all duration-300 cursor-pointer flex flex-col justify-between h-full min-h-[220px]"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full bg-surface-muted text-text-secondary group-hover:bg-brand-green group-hover:text-on-dark transition-colors">
+                        {creds.badge}
+                      </span>
+                      <span className="text-[11px] font-mono text-text-muted">
+                        {creds.name.split(" ")[0]}
+                      </span>
+                    </div>
+
+                    <h3 className="font-serif italic text-xl text-text-primary group-hover:text-brand-green transition-colors mb-1.5">
+                      {p.label}
+                    </h3>
+                    <p className="text-xs text-text-secondary leading-relaxed line-clamp-3 mb-4">
+                      {p.summary}
+                    </p>
+                  </div>
+
+                  <div className="pt-3 border-t border-border/80 flex items-center justify-between">
+                    <span className="text-[11px] font-mono text-text-muted truncate max-w-[140px]">
+                      {creds.email}
+                    </span>
+                    <span className="text-xs font-semibold text-brand-green group-hover:translate-x-1 transition-transform inline-flex items-center gap-1 shrink-0">
+                      Sign In →
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Clean 1-line footer note */}
+          <div className="text-center text-[11px] font-mono text-text-muted pb-1">
+            Shared campaign state across all 4 personas · Instant cryptographic audit verification
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────────────────────────────────────────────────────────────────
+          STAGE 2: AUTHENTICATED WORKSPACE SHELL (Sidebar + Dynamic Role Views)
+      ────────────────────────────────────────────────────────────────────────── */}
+      {authenticatedRole && (
+        <div className="flex flex-col md:flex-row min-h-[calc(100vh-61px)]">
+          {/* Left Sidebar Navigation */}
+          <aside className="w-full md:w-64 bg-surface border-r border-border p-4 flex flex-col justify-between shrink-0 shadow-xs">
+            <div className="space-y-6">
+              {/* Persona Context Card */}
+              <div className="p-3.5 rounded-2xl bg-background-soft border border-border/80">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                  <span className="text-xs font-semibold text-text-primary">
+                    {DEMO_CREDENTIALS[authenticatedRole].name}
+                  </span>
+                </div>
+                <span className="text-[11px] font-mono text-brand-green block">
+                  {ROLES[authenticatedRole].label}
+                </span>
+                <span className="text-[10px] text-text-muted mt-1 block">
+                  {DEMO_CREDENTIALS[authenticatedRole].email}
+                </span>
+              </div>
+
+              {/* Dynamic Navigation Tabs per Role (Clean, emoji-free professional UI) */}
+              <nav className="space-y-1">
+                {authenticatedRole === "creator" && (
+                  <>
+                    {[
+                      { id: "overview", label: "Overview" },
+                      { id: "campaigns", label: "My Campaigns" },
+                      { id: "drafts", label: "Drafts & Editor" },
+                      { id: "guidelines", label: "Brand Guidelines" },
+                      { id: "sources", label: "Approved Sources" },
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setCreatorTab(tab.id as any)}
+                        className={`w-full text-left text-xs font-sans px-3.5 py-2.5 rounded-xl transition-all ${
+                          creatorTab === tab.id
+                            ? "bg-[#1c1a18] text-white font-medium shadow-xs"
+                            : "text-text-secondary hover:bg-background-soft hover:text-text-primary"
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </>
+                )}
+
+                {authenticatedRole === "reviewer" && (
+                  <>
+                    {[
+                      { id: "queue", label: "Review Queue" },
+                      { id: "review", label: "Campaign Review" },
+                      { id: "all_campaigns", label: "All Campaigns" },
+                      { id: "findings", label: "Findings Hub" },
+                      { id: "decisions", label: "Decision History" },
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setReviewerTab(tab.id as any)}
+                        className={`w-full text-left text-xs font-sans px-3.5 py-2.5 rounded-xl transition-all ${
+                          reviewerTab === tab.id
+                            ? "bg-[#1c1a18] text-white font-medium shadow-xs"
+                            : "text-text-secondary hover:bg-background-soft hover:text-text-primary"
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </>
+                )}
+
+                {authenticatedRole === "approver" && (
+                  <>
+                    {[
+                      { id: "approval_queue", label: "Approval Queue" },
+                      { id: "active_review", label: "Statutory Audit & Sign" },
+                      { id: "blocked", label: "Blocked Campaigns" },
+                      { id: "certificates", label: "Issued Certificates" },
+                      { id: "audit", label: "Audit Ledger" },
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setApproverTab(tab.id as any)}
+                        className={`w-full text-left text-xs font-sans px-3.5 py-2.5 rounded-xl transition-all ${
+                          approverTab === tab.id
+                            ? "bg-[#1c1a18] text-white font-medium shadow-xs"
+                            : "text-text-secondary hover:bg-background-soft hover:text-text-primary"
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </>
+                )}
+
+                {authenticatedRole === "admin" && (
+                  <>
+                    {[
+                      { id: "overview", label: "System Overview" },
+                      { id: "brand_brain", label: "Brand Brain (Rules)" },
+                      { id: "facts", label: "Fact Ledger & Sources" },
+                      { id: "terminology", label: "Terminology & Assets" },
+                      { id: "insights", label: "Learning Loop" },
+                      { id: "audit_logs", label: "Cryptographic Audit" },
+                      { id: "users", label: "Users & Roles" },
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setAdminTab(tab.id as any)}
+                        className={`w-full text-left text-xs font-sans px-3.5 py-2.5 rounded-xl transition-all ${
+                          adminTab === tab.id
+                            ? "bg-[#1c1a18] text-white font-medium shadow-xs"
+                            : "text-text-secondary hover:bg-background-soft hover:text-text-primary"
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </nav>
+            </div>
+
+            {/* Sidebar Footer Action */}
+            <div className="pt-4 border-t border-border/80">
+              {authenticatedRole === "creator" && (
+                <button
+                  onClick={() => setShowScanModal(true)}
+                  className="w-full py-2.5 rounded-xl bg-brand-green text-on-dark text-xs uppercase font-mono font-medium hover:bg-brand-green-dark transition-all shadow-xs flex items-center justify-center gap-1.5"
+                >
+                  <span>+</span> New Campaign
+                </button>
+              )}
+
+              {authenticatedRole !== "creator" && (
+                <div className="text-[11px] font-mono text-text-muted p-2 rounded-lg bg-background-soft text-center">
+                  <span>Logged in as </span>
+                  <span className="font-semibold text-text-primary">{ROLES[authenticatedRole].label}</span>
+                </div>
+              )}
+            </div>
+          </aside>
+
+          {/* Main Work Area: Dynamically switches based on Authenticated Role */}
+          <main className="flex-1 p-5 sm:p-8 overflow-y-auto">
+            {/* ─────────────────────────────────────────────────────────────
+                ROLE 1: CREATOR WORKSPACE ("What is wrong and how do I fix it?")
+            ───────────────────────────────────────────────────────────── */}
+            {authenticatedRole === "creator" && (
+              <div className="space-y-6 max-w-6xl mx-auto">
+                {/* Creator Header Banner */}
+                <div className="bg-surface rounded-2xl p-6 border border-border shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <span className="text-[11px] font-mono uppercase bg-amber-500/10 text-amber-700 px-2.5 py-0.5 rounded-full font-semibold">
+                      Creator Studio
+                    </span>
+                    <h2 className="font-serif italic text-2xl sm:text-3xl text-text-primary mt-1">
+                      Welcome, Riya
+                    </h2>
+                    <p className="text-xs sm:text-sm text-text-muted mt-0.5">
+                      Draft marketing copy, review automated findings, and apply intent-preserving fixes before submitting for review.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => setShowScanModal(true)}
+                    className="px-5 py-2.5 rounded-pill bg-brand-green text-on-dark text-xs font-mono uppercase tracking-wider font-medium hover:bg-brand-green-dark transition-colors shadow-xs"
+                  >
+                    + Submit New Draft
+                  </button>
+                </div>
+
+                {/* CREATOR: TAB 1 - OVERVIEW */}
+                {creatorTab === "overview" && (
+                  <div className="space-y-6">
+                    {/* Creator KPI Stat Cards */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="bg-surface p-5 rounded-2xl border border-border">
+                        <span className="text-[11px] font-mono uppercase text-text-muted block mb-1">Needing Attention</span>
+                        <span className="font-serif italic text-3xl text-critical">1</span>
+                        <span className="text-[11px] text-text-muted block mt-1">Campaign with open flags</span>
+                      </div>
+                      <div className="bg-surface p-5 rounded-2xl border border-border">
+                        <span className="text-[11px] font-mono uppercase text-text-muted block mb-1">Active Drafts</span>
+                        <span className="font-serif italic text-3xl text-text-primary">2</span>
+                        <span className="text-[11px] text-text-muted block mt-1">In editing pipeline</span>
+                      </div>
+                      <div className="bg-surface p-5 rounded-2xl border border-border">
+                        <span className="text-[11px] font-mono uppercase text-text-muted block mb-1">Approved Campaigns</span>
+                        <span className="font-serif italic text-3xl text-success">{isApproved ? 1 : 0}</span>
+                        <span className="text-[11px] text-text-muted block mt-1">{isApproved ? "1 certified" : "0 approved"}</span>
+                      </div>
+                      <div className="bg-surface p-5 rounded-2xl border border-border">
+                        <span className="text-[11px] font-mono uppercase text-text-muted block mb-1">Unresolved Flags</span>
+                        <span className="font-serif italic text-3xl text-warning">{openCount}</span>
+                        <span className="text-[11px] text-text-muted block mt-1">Issues to resolve</span>
+                      </div>
+                    </div>
+
+                    {/* Active Campaign Card */}
+                    <div className="bg-surface rounded-2xl p-6 border border-border">
+                      <div className="flex items-center justify-between pb-4 border-b border-border/80 mb-4">
+                        <div>
+                          <span className="text-xs font-mono text-brand-green uppercase font-semibold">Active Campaign</span>
+                          <h3 className="font-serif italic text-xl text-text-primary">{state.draft.title}</h3>
+                          <p className="text-xs text-text-muted mt-0.5">Channel: {state.draft.channel} · Author: {state.draft.author}</p>
+                        </div>
+                        <button
+                          onClick={() => setCreatorTab("drafts")}
+                          className="px-4 py-2 rounded-xl bg-background-soft border border-border text-xs font-mono text-text-primary hover:border-brand-green transition-colors"
                         >
-                          ● {selectedFinding.status}
+                          Open in Editor →
+                        </button>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-background-soft border border-border/60 text-sm font-serif italic text-text-secondary mb-4">
+                        &quot;{state.draft.text}&quot;
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2.5 py-1 rounded-full font-mono text-[11px] ${openCount === 0 ? "bg-success-soft text-success" : "bg-warning-soft text-warning"}`}>
+                            {openCount === 0 ? "Ready for Sign-Off" : `${openCount} Open Issues`}
+                          </span>
+                          <span className="text-text-muted">Creator Permissions Active: Edit & Apply Fixes</span>
+                        </div>
+                        <span className="text-[11px] font-mono text-text-muted">
+                          Approval Authority: Compliance Officer
                         </span>
                       </div>
+                    </div>
+                  </div>
+                )}
 
-                      {/* Target Phrase */}
-                      <div>
-                        <span className="text-xs uppercase font-mono tracking-wider text-text-muted block mb-1">
-                          Flagged Target Span:
-                        </span>
-                        <blockquote className="text-base font-serif italic text-text-primary bg-background-soft p-3 rounded-lg border border-border/60">
-                          “{selectedFinding.phrase}”
-                        </blockquote>
-                      </div>
+                {/* CREATOR: TAB 2 - MY CAMPAIGNS */}
+                {creatorTab === "campaigns" && (
+                  <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border">
+                    <h3 className="font-serif italic text-2xl text-text-primary mb-2">My Submissions & Campaigns</h3>
+                    <p className="text-xs text-text-muted mb-6">Marketing drafts authored by Riya Sharma for Arthaa Finserv.</p>
 
-                      {/* Explanation (Why) */}
-                      <div>
-                        <span className="text-xs uppercase font-mono tracking-wider text-text-muted block mb-1">
-                          Why It Was Flagged:
-                        </span>
-                        <p className="text-xs sm:text-sm text-text-secondary leading-relaxed">
-                          {selectedFinding.why}
-                        </p>
-                      </div>
-
-                      {/* Evidence & Citation */}
-                      <div className="bg-surface-muted/30 p-3.5 rounded-xl border border-border/80 space-y-2">
-                        <div className="flex items-center justify-between text-xs font-mono">
-                          <span className="text-brand-green font-semibold">
-                            Citation / Rule Ref:
-                          </span>
-                          <span className="text-text-muted">
-                            {selectedFinding.ruleId || selectedFinding.factId || "Source Ref"}
-                          </span>
-                        </div>
-                        <p className="text-xs text-text-secondary">
-                          {selectedFinding.evidence}
-                        </p>
-                        <div className="pt-2 border-t border-border/60 flex items-center justify-between text-[11px] font-mono text-text-muted">
-                          <span>Confidence: {(selectedFinding.confidence * 100).toFixed(0)}%</span>
-                          <span>{selectedFinding.confidenceNote}</span>
-                        </div>
-                      </div>
-
-                      {/* Suggested Intent-Preserving Fix */}
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs uppercase font-mono tracking-wider text-brand-green font-semibold">
-                            Intent-Preserving Proposal:
-                          </span>
-                          <span className="text-[11px] text-text-muted">
-                            Creator Intent Preserved
-                          </span>
-                        </div>
-
-                        <div className="bg-background-soft p-3.5 rounded-xl border border-border flex flex-col gap-2">
-                          <p className="text-sm font-medium text-text-primary font-serif">
-                            {selectedFinding.suggestedFix}
-                          </p>
-                          <p className="text-xs text-text-muted italic">
-                            Note: {selectedFinding.intentNote}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Custom Edit Box if active */}
-                      {isEditingFix && (
-                        <div className="space-y-2 pt-2">
-                          <label className="text-xs font-mono uppercase tracking-wider text-text-secondary">
-                            Custom Replacement Phrasing:
-                          </label>
-                          <textarea
-                            rows={3}
-                            value={customEditText}
-                            onChange={(e) => setCustomEditText(e.target.value)}
-                            className="w-full text-xs p-3 rounded-lg border border-border bg-background focus:outline-none focus:border-brand-green"
-                            placeholder="Type custom compliant copy..."
-                          />
-                          <div className="flex justify-end gap-2">
+                    <div className="divide-y divide-border/60">
+                      {QUEUE.map((item) => (
+                        <div key={item.id} className="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                          <div>
+                            <h4 className="text-sm font-semibold text-text-primary">{item.title}</h4>
+                            <p className="text-xs text-text-muted mt-0.5">{item.channel} · Updated {item.updated}</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-mono text-text-secondary">{item.findings} Findings</span>
+                            <span className={`text-[11px] font-mono uppercase px-2.5 py-0.5 rounded-full ${item.status === "approved" ? "bg-success-soft text-success" : "bg-warning-soft text-warning"}`}>
+                              {item.status.replace("_", " ")}
+                            </span>
                             <button
-                              type="button"
-                              onClick={() => setIsEditingFix(false)}
-                              className="text-xs px-3 py-1.5 text-text-muted hover:text-text-primary"
+                              onClick={() => setCreatorTab("drafts")}
+                              className="text-xs font-mono text-brand-green hover:underline ml-2"
                             >
-                              Cancel
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleApplyCustomEdit(selectedFinding.id)}
-                              className="text-xs px-4 py-1.5 rounded-pill bg-brand-green text-on-dark font-medium"
-                            >
-                              Apply Edit
+                              Edit Copy →
                             </button>
                           </div>
                         </div>
-                      )}
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-                      {/* Review Actions: Accept, Edit, Dismiss */}
-                      {!isApproved && selectedFinding.status === "open" && !isEditingFix && (
-                        <div className="pt-4 border-t border-border flex items-center gap-2">
-                          <button
-                            type="button"
-                            disabled={!roleProfile.can.acceptFix}
-                            onClick={() => handleAcceptFix(selectedFinding.id)}
-                            className="flex-1 py-2.5 rounded-pill bg-brand-green text-on-dark text-xs uppercase font-semibold tracking-wider hover:bg-brand-green-dark transition-all disabled:opacity-40"
-                          >
-                            Accept Fix
-                          </button>
-
-                          <button
-                            type="button"
-                            disabled={!roleProfile.can.editFix}
-                            onClick={() => {
-                              setCustomEditText(selectedFinding.suggestedFix);
-                              setIsEditingFix(true);
-                            }}
-                            className="px-4 py-2.5 rounded-pill border border-border text-xs uppercase font-semibold tracking-wider hover:bg-background-soft transition-all disabled:opacity-40"
-                          >
-                            Edit
-                          </button>
-
-                          <button
-                            type="button"
-                            disabled={!roleProfile.can.dismiss}
-                            onClick={() => setShowDismissModal(true)}
-                            className="px-4 py-2.5 rounded-pill border border-critical/30 text-critical text-xs uppercase font-semibold tracking-wider hover:bg-critical-soft transition-all disabled:opacity-40"
-                          >
-                            Dismiss
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Reopen button if already resolved */}
-                      {selectedFinding.status !== "open" && !isApproved && (
-                        <div className="pt-4 border-t border-border flex items-center justify-between">
-                          <span className="text-xs text-text-muted italic">
-                            Resolved by {selectedFinding.resolution?.by} ({selectedFinding.resolution?.role})
+                {/* CREATOR: TAB 3 - DRAFTS & EDITOR */}
+                {creatorTab === "drafts" && (
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    {/* Left: Draft Content with Span Highlights & Live Diff */}
+                    <div className="lg:col-span-7 space-y-6">
+                      <div className="bg-surface rounded-2xl p-6 border border-border">
+                        <div className="flex items-center justify-between pb-3 border-b border-border/80 mb-4">
+                          <div>
+                            <h3 className="text-sm font-semibold text-text-primary">{state.draft.title}</h3>
+                            <p className="text-xs text-text-muted">Click flagged spans to view recommended fixes</p>
+                          </div>
+                          <span className="text-xs font-mono bg-surface-muted px-2.5 py-1 rounded-full text-text-secondary">
+                            {openCount} / {state.findings.length} Unresolved
                           </span>
+                        </div>
+
+                        {/* Text highlights */}
+                        <div className="relative text-lg font-serif leading-relaxed text-text-primary p-4 rounded-xl bg-background-soft border border-border/60 min-h-36">
+                          {segmentText(state.draft.text, state.findings).map((seg, idx) => {
+                            if (!seg.finding) return <span key={idx}>{seg.text}</span>;
+                            const f = seg.finding;
+                            const isSelected = f.id === state.selectedId;
+                            const tone = KIND_META[f.kind].tone;
+                            const resolved = f.status !== "open";
+                            return (
+                              <button
+                                type="button"
+                                key={idx}
+                                onClick={() => handleSelectFinding(f.id)}
+                                className={`mark-span text-left inline-block cursor-pointer ${
+                                  isSelected ? TONE_CLASSES[tone].markActive : TONE_CLASSES[tone].mark
+                                } ${resolved ? "opacity-60 line-through decoration-text-muted" : ""}`}
+                              >
+                                {f.phrase}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Live Intent-Preserving Diff */}
+                        <div className="mt-6 pt-6 border-t border-border">
+                          <span className="text-xs uppercase font-mono tracking-wider text-brand-green font-semibold block mb-2">
+                            Intent-Preserving Live Proposal:
+                          </span>
+                          <p className="text-sm sm:text-base font-serif italic text-text-primary p-4 rounded-xl bg-surface-muted/40 border border-border/80">
+                            {revisedText(state.draft, state.findings)}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Creator Notice: Cannot Approve */}
+                      <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 text-xs flex items-center justify-between">
+                        <span>
+                          <strong>Creator Scope:</strong> You can apply fixes and edit draft copy. Final regulatory sign-off is restricted to the Compliance Approver.
+                        </span>
+                        <span className="font-mono text-[11px] bg-amber-500/20 px-2 py-0.5 rounded">
+                          Approval Locked
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Right: Selected Finding Inspector */}
+                    <div className="lg:col-span-5">
+                      <div className="bg-surface rounded-2xl p-6 border border-border sticky top-20 space-y-4">
+                        {selectedFinding ? (
+                          <>
+                            <div className="flex items-center justify-between pb-3 border-b border-border">
+                              <span className={`text-xs font-mono uppercase px-2.5 py-0.5 rounded-full ${TONE_CLASSES[KIND_META[selectedFinding.kind].tone].chip}`}>
+                                {KIND_META[selectedFinding.kind].label}
+                              </span>
+                              <span className="text-xs font-mono uppercase text-text-muted">● {selectedFinding.status}</span>
+                            </div>
+
+                            <div>
+                              <span className="text-[11px] uppercase font-mono text-text-muted block mb-1">Flagged Text:</span>
+                              <blockquote className="text-sm font-serif italic bg-background-soft p-3 rounded-lg border border-border">
+                                &quot;{selectedFinding.phrase}&quot;
+                              </blockquote>
+                            </div>
+
+                            <div>
+                              <span className="text-[11px] uppercase font-mono text-text-muted block mb-1">Why It Was Flagged:</span>
+                              <p className="text-xs text-text-secondary leading-relaxed">{selectedFinding.why}</p>
+                            </div>
+
+                            <div className="bg-surface-muted/30 p-3 rounded-xl border border-border text-xs space-y-1">
+                              <div className="flex justify-between font-mono text-[11px]">
+                                <span className="text-brand-green font-semibold">Rule / Evidence:</span>
+                                <span>{selectedFinding.ruleId || selectedFinding.factId}</span>
+                              </div>
+                              <p className="text-text-secondary text-[11px]">{selectedFinding.evidence}</p>
+                            </div>
+
+                            <div className="bg-background-soft p-3.5 rounded-xl border border-border">
+                              <span className="text-[11px] uppercase font-mono text-brand-green font-semibold block mb-1">
+                                Intent-Preserving Fix:
+                              </span>
+                              <p className="text-xs font-serif font-medium text-text-primary mb-1">{selectedFinding.suggestedFix}</p>
+                              <p className="text-[11px] text-text-muted italic">{selectedFinding.intentNote}</p>
+                            </div>
+
+                            {/* Creator Actions: Accept or Edit */}
+                            {selectedFinding.status === "open" && (
+                              <div className="pt-3 border-t border-border flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleAcceptFix(selectedFinding.id)}
+                                  className="flex-1 py-2.5 rounded-pill bg-brand-green text-on-dark text-xs uppercase font-semibold font-mono tracking-wider hover:bg-brand-green-dark transition-all"
+                                >
+                                  Apply Fix
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCustomEditText(selectedFinding.suggestedFix);
+                                    setIsEditingFix(true);
+                                  }}
+                                  className="px-4 py-2.5 rounded-pill border border-border text-xs uppercase font-mono font-semibold hover:bg-background-soft transition-all"
+                                >
+                                  Edit
+                                </button>
+                              </div>
+                            )}
+
+                            {selectedFinding.status !== "open" && (
+                              <div className="pt-3 border-t border-border text-xs text-success font-mono">
+                                ✓ Resolved: {selectedFinding.status}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-xs text-text-muted text-center py-8">Select a finding to inspect.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* CREATOR: TAB 4 - BRAND GUIDELINES */}
+                {creatorTab === "guidelines" && (
+                  <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border space-y-6">
+                    <h3 className="font-serif italic text-2xl text-text-primary">Creator Brand Reference</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {BRAND_ASSETS.map((asset) => (
+                        <div key={asset.id} className="p-4 rounded-xl bg-background-soft border border-border">
+                          <span className="text-[11px] font-mono uppercase text-brand-green font-semibold block mb-1">{asset.type}</span>
+                          <h4 className="text-sm font-semibold text-text-primary">{asset.name}</h4>
+                          <p className="text-xs font-mono bg-surface p-2 rounded my-2 text-text-secondary">{asset.value}</p>
+                          <p className="text-xs text-text-muted">{asset.rule}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* CREATOR: TAB 5 - SOURCES */}
+                {creatorTab === "sources" && (
+                  <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border">
+                    <h3 className="font-serif italic text-2xl text-text-primary mb-2">Approved Evidence Vault</h3>
+                    <p className="text-xs text-text-muted mb-4">Official source documents backing all verified claims.</p>
+                    <div className="divide-y divide-border/60">
+                      {SOURCES.map((src) => (
+                        <div key={src.id} className="py-3 flex items-center justify-between">
+                          <div>
+                            <span className="text-xs font-semibold text-text-primary block">{src.title}</span>
+                            <span className="text-[11px] font-mono text-text-muted">Issued: {src.issued} · Kind: {src.kind}</span>
+                          </div>
+                          <span className="text-[11px] font-mono bg-surface-muted px-2 py-0.5 rounded text-text-secondary">
+                            SHA: {shortHash(src.hash)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ─────────────────────────────────────────────────────────────
+                ROLE 2: REVIEWER WORKSPACE ("What findings require my judgment?")
+            ───────────────────────────────────────────────────────────── */}
+            {authenticatedRole === "reviewer" && (
+              <div className="space-y-6 max-w-6xl mx-auto">
+                {/* Reviewer Header Banner */}
+                <div className="bg-surface rounded-2xl p-6 border border-border shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <span className="text-[11px] font-mono uppercase bg-indigo-500/10 text-indigo-700 px-2.5 py-0.5 rounded-full font-semibold">
+                      Editorial Review Station
+                    </span>
+                    <h2 className="font-serif italic text-2xl sm:text-3xl text-text-primary mt-1">
+                      Review Queue & Triage
+                    </h2>
+                    <p className="text-xs sm:text-sm text-text-muted mt-0.5">
+                      Review flagged claims, inspect citations, accept intent-preserving fixes, or dismiss with written justification.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowCommentsDrawer(!showCommentsDrawer)}
+                      className="px-4 py-2 rounded-xl bg-background-soft border border-border text-xs font-mono text-text-primary hover:border-brand-green transition-colors"
+                    >
+                      Review Notes ({comments.length})
+                    </button>
+                  </div>
+                </div>
+
+                {/* REVIEWER: TAB 1 - QUEUE */}
+                {reviewerTab === "queue" && (
+                  <div className="space-y-6">
+                    {/* Reviewer KPI Cards */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="bg-surface p-5 rounded-2xl border border-border">
+                        <span className="text-[11px] font-mono uppercase text-text-muted block mb-1">Awaiting Review</span>
+                        <span className="font-serif italic text-3xl text-warning">1</span>
+                        <span className="text-[11px] text-text-muted block mt-1">Active priority draft</span>
+                      </div>
+                      <div className="bg-surface p-5 rounded-2xl border border-border">
+                        <span className="text-[11px] font-mono uppercase text-text-muted block mb-1">High-Priority Flags</span>
+                        <span className="font-serif italic text-3xl text-critical">2</span>
+                        <span className="text-[11px] text-text-muted block mt-1">Statutory & claim issues</span>
+                      </div>
+                      <div className="bg-surface p-5 rounded-2xl border border-border">
+                        <span className="text-[11px] font-mono uppercase text-text-muted block mb-1">Needs Verification</span>
+                        <span className="font-serif italic text-3xl text-amber-600">1</span>
+                        <span className="text-[11px] text-text-muted block mt-1">Strict abstention item</span>
+                      </div>
+                      <div className="bg-surface p-5 rounded-2xl border border-border">
+                        <span className="text-[11px] font-mono uppercase text-text-muted block mb-1">Expiring Facts</span>
+                        <span className="font-serif italic text-3xl text-text-secondary">1</span>
+                        <span className="text-[11px] text-text-muted block mt-1">F-021 AUM expired</span>
+                      </div>
+                    </div>
+
+                    {/* Review Queue Items */}
+                    <div className="bg-surface rounded-2xl p-6 border border-border">
+                      <div className="flex items-center justify-between pb-4 border-b border-border/80 mb-4">
+                        <h3 className="font-serif italic text-xl text-text-primary">Prioritized Triage Queue</h3>
+                        <span className="text-xs font-mono text-text-muted">SLA: 2 hours remaining</span>
+                      </div>
+
+                      <div className="p-5 rounded-xl bg-background-soft border border-border/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-mono font-semibold text-brand-green">{state.draft.campaign}</span>
+                            <span className="text-[11px] font-mono uppercase bg-warning-soft text-warning px-2 py-0.5 rounded-full">
+                              Needs Triage
+                            </span>
+                          </div>
+                          <h4 className="text-sm font-semibold text-text-primary">{state.draft.title}</h4>
+                          <p className="text-xs text-text-muted mt-0.5">Author: {state.draft.author} · Channel: {state.draft.channel}</p>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-mono text-critical font-semibold">{openCount} Flags Open</span>
                           <button
-                            type="button"
-                            onClick={() =>
-                              dispatch({
-                                type: "reopen",
-                                id: selectedFinding.id,
-                                at: new Date().toISOString(),
-                              })
-                            }
-                            className="text-xs font-mono text-brand-green hover:underline"
+                            onClick={() => setReviewerTab("review")}
+                            className="px-5 py-2.5 rounded-pill bg-brand-green text-on-dark text-xs font-mono uppercase font-semibold hover:bg-brand-green-dark transition-all"
                           >
-                            Reopen Flag
+                            Review Draft →
                           </button>
                         </div>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-text-muted text-center py-12">
-                      Select a finding to inspect citations and take action.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 2: Brand Brain (Guidelines, Facts, Glossary, Brand Assets) */}
-        {activeTab === "brain" && (
-          <div className="space-y-6">
-            {/* Sub-tab Navigation */}
-            <div className="flex items-center justify-between border-b border-border/80 pb-2">
-              <div className="flex items-center gap-2">
-                {[
-                  { id: "rules", label: "Rules & Guidelines" },
-                  { id: "facts", label: "Fact Ledger & Vault" },
-                  { id: "glossary", label: "Approved Terminology" },
-                  { id: "assets", label: "Brand Assets & Tokens" },
-                ].map((sub) => (
-                  <button
-                    key={sub.id}
-                    onClick={() => setBrainSubTab(sub.id as any)}
-                    className={`text-xs uppercase font-mono px-3 py-1.5 rounded-md transition-colors ${
-                      brainSubTab === sub.id
-                        ? "bg-brand-green text-on-dark font-medium"
-                        : "bg-surface text-text-muted hover:text-text-primary"
-                    }`}
-                  >
-                    {sub.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Add Entry Buttons */}
-              <div>
-                {brainSubTab === "rules" && (
-                  <button
-                    onClick={() => setShowAddRuleModal(true)}
-                    className="text-xs font-mono uppercase px-3 py-1.5 rounded-pill bg-brand-green text-on-dark hover:bg-brand-green-dark transition-colors"
-                  >
-                    + Define New Rule
-                  </button>
-                )}
-                {brainSubTab === "facts" && (
-                  <button
-                    onClick={() => setShowAddFactModal(true)}
-                    className="text-xs font-mono uppercase px-3 py-1.5 rounded-pill bg-brand-green text-on-dark hover:bg-brand-green-dark transition-colors"
-                  >
-                    + Register Audited Fact
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Sub-tab 1: Rules & Guidelines */}
-            {brainSubTab === "rules" && (
-              <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border">
-                <h3 className="font-serif italic text-2xl text-text-primary mb-2">
-                  Active Brand Rules & Regulatory Standards
-                </h3>
-                <p className="text-xs sm:text-sm text-text-muted mb-6">
-                  Deterministic regex and brand rules in force across Arthaa Finserv.
-                </p>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {allRules.map((rule) => (
-                    <div
-                      key={rule.id}
-                      className="p-5 rounded-xl bg-background-soft border border-border/80"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-mono font-semibold text-brand-green">
-                          {rule.id} · v{rule.version}
-                        </span>
-                        <span className="text-[11px] font-mono uppercase bg-surface-muted px-2 py-0.5 rounded-full">
-                          {rule.category}
-                        </span>
                       </div>
-                      <h4 className="text-sm font-semibold text-text-primary mb-1">
-                        {rule.title}
-                      </h4>
-                      <p className="text-xs text-text-secondary leading-relaxed">
-                        {rule.summary}
-                      </p>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  </div>
+                )}
 
-            {/* Sub-tab 2: Fact Ledger & Source Vault */}
-            {brainSubTab === "facts" && (
-              <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border">
-                <h3 className="font-serif italic text-2xl text-text-primary mb-2">
-                  Temporal Fact Ledger & Source Vault
-                </h3>
-                <p className="text-xs sm:text-sm text-text-muted mb-6">
-                  Audited financial metrics with temporal validity windows and cryptographic hash citations.
-                </p>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs font-sans">
-                    <thead>
-                      <tr className="border-b border-border text-text-muted font-mono uppercase">
-                        <th className="py-2.5">Fact ID</th>
-                        <th>Metric</th>
-                        <th>Audited Value</th>
-                        <th>Validity Window</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/60">
-                      {allFacts.map((fact, idx) => (
-                        <tr key={idx} className="hover:bg-background-soft/60">
-                          <td className="py-3 font-mono font-medium text-brand-green">
-                            {fact.id} v{fact.version}
-                          </td>
-                          <td className="font-medium text-text-primary">{fact.label}</td>
-                          <td className="font-mono">{fact.value}</td>
-                          <td className="text-text-muted">
-                            {fact.validFrom || "2026-01-01"} → {fact.validUntil}
-                          </td>
-                          <td>
-                            <span
-                              className={`px-2 py-0.5 rounded-full font-mono text-[11px] ${
-                                fact.status === "current"
-                                  ? "bg-success-soft text-success"
-                                  : "bg-warning-soft text-warning"
-                              }`}
+                {/* REVIEWER: TAB 2 - MAIN CAMPAIGN REVIEW */}
+                {reviewerTab === "review" && (
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    {/* Left: Draft Content with Span Highlights & Format Selector */}
+                    <div className="lg:col-span-7 space-y-6">
+                      <div className="bg-surface rounded-2xl p-6 border border-border">
+                        <div className="flex items-center justify-between pb-4 border-b border-border mb-4">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setCurrentFormat("text")}
+                              className={`text-xs font-mono px-3 py-1 rounded-lg ${currentFormat === "text" ? "bg-brand-green text-on-dark" : "bg-background-soft text-text-muted"}`}
                             >
-                              {fact.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+                              Text Copy
+                            </button>
+                            <button
+                              onClick={() => setCurrentFormat("image")}
+                              className={`text-xs font-mono px-3 py-1 rounded-lg ${currentFormat === "image" ? "bg-brand-green text-on-dark" : "bg-background-soft text-text-muted"}`}
+                            >
+                              Visual Banner & WCAG
+                            </button>
+                            <button
+                              onClick={() => setCurrentFormat("document")}
+                              className={`text-xs font-mono px-3 py-1 rounded-lg ${currentFormat === "document" ? "bg-brand-green text-on-dark" : "bg-background-soft text-text-muted"}`}
+                            >
+                              Factsheet PDF
+                            </button>
+                          </div>
+                          <span className="text-xs font-mono text-text-muted">Draft v{state.draft.version}</span>
+                        </div>
 
-            {/* Sub-tab 3: Approved Terminology & Glossary */}
-            {brainSubTab === "glossary" && (
-              <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border">
-                <h3 className="font-serif italic text-2xl text-text-primary mb-2">
-                  Brand Glossary & Nomenclature Registry
-                </h3>
-                <p className="text-xs sm:text-sm text-text-muted mb-6">
-                  Approved vs disallowed phrasing ensuring tone, messaging, and statutory compliance.
-                </p>
+                        {currentFormat === "text" && (
+                          <div className="relative text-lg font-serif leading-relaxed text-text-primary p-4 rounded-xl bg-background-soft border border-border/60 min-h-36">
+                            {segmentText(state.draft.text, state.findings).map((seg, idx) => {
+                              if (!seg.finding) return <span key={idx}>{seg.text}</span>;
+                              const f = seg.finding;
+                              const isSelected = f.id === state.selectedId;
+                              const tone = KIND_META[f.kind].tone;
+                              const resolved = f.status !== "open";
+                              return (
+                                <button
+                                  type="button"
+                                  key={idx}
+                                  onClick={() => handleSelectFinding(f.id)}
+                                  className={`mark-span text-left inline-block cursor-pointer ${
+                                    isSelected ? TONE_CLASSES[tone].markActive : TONE_CLASSES[tone].mark
+                                  } ${resolved ? "opacity-60 line-through decoration-text-muted" : ""}`}
+                                >
+                                  {f.phrase}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs font-sans">
-                    <thead>
-                      <tr className="border-b border-border text-text-muted font-mono uppercase">
-                        <th className="py-2.5 text-critical">Disallowed Phrasing</th>
-                        <th className="text-success">Approved / Preferred Term</th>
-                        <th>Governance Rationale</th>
-                        <th>Rule ID</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/60">
-                      {GLOSSARY_TERMS.map((term, idx) => (
-                        <tr key={idx} className="hover:bg-background-soft/60">
-                          <td className="py-3 text-critical font-medium line-through">
-                            {term.disallowed}
-                          </td>
-                          <td className="text-success font-medium">
-                            {term.preferred}
-                          </td>
-                          <td className="text-text-secondary max-w-sm">
-                            {term.reason}
-                          </td>
-                          <td className="font-mono text-brand-green">
-                            {term.ruleId}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+                        {currentFormat === "image" && (
+                          <div className="space-y-4">
+                            <div className="relative rounded-xl overflow-hidden aspect-video bg-background-soft max-h-[300px]">
+                              <Image src="/images/cap-fixes.jpg" alt="Campaign Banner" fill className="object-cover" />
+                              <div className="absolute inset-0 bg-black/20 p-4 flex flex-col justify-between">
+                                <span className="bg-critical text-on-dark text-[11px] font-mono px-2 py-0.5 rounded w-max">
+                                  WCAG 2.1 AA Contrast: 2.8:1 (Fails 4.5:1)
+                                </span>
+                                <span className="bg-surface/90 p-2 rounded text-xs text-text-primary">
+                                  Logo Safe Margin: 24px clearance verified
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
-            {/* Sub-tab 4: Brand Assets & Design Tokens */}
-            {brainSubTab === "assets" && (
-              <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border">
-                <h3 className="font-serif italic text-2xl text-text-primary mb-2">
-                  Reusable Brand Assets & Visual Standards
-                </h3>
-                <p className="text-xs sm:text-sm text-text-muted mb-6">
-                  Design tokens, logo safety guidelines, color palettes, and statutory boilerplates.
-                </p>
+                        {currentFormat === "document" && (
+                          <div className="p-4 bg-background-soft rounded-xl text-xs space-y-2">
+                            <div className="flex justify-between font-mono pb-2 border-b border-border">
+                              <span className="font-semibold text-brand-green">Factsheet Metrics Extracted</span>
+                              <span className="text-text-muted">Source: E-021 Factsheet Q2</span>
+                            </div>
+                            <div className="flex justify-between py-1">
+                              <span>Reported AUM: ₹4,200 Cr</span>
+                              <span className="text-warning font-mono">Expired (Ledger is ₹4,850 Cr)</span>
+                            </div>
+                            <div className="flex justify-between py-1">
+                              <span>Total Expense Ratio: 0.65%</span>
+                              <span className="text-success font-mono">SEBI TER Compliant ✓</span>
+                            </div>
+                          </div>
+                        )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {BRAND_ASSETS.map((asset) => (
-                    <div key={asset.id} className="p-4 rounded-xl bg-background-soft border border-border/80">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-mono text-xs font-semibold text-brand-green">
-                          {asset.id}
+                        {/* Intent-Preserving Diff */}
+                        <div className="mt-4 pt-4 border-t border-border">
+                          <span className="text-xs uppercase font-mono tracking-wider text-brand-green font-semibold block mb-1">
+                            Live Result:
+                          </span>
+                          <p className="text-sm font-serif italic text-text-primary p-3 rounded-xl bg-surface-muted/40 border border-border/80">
+                            {revisedText(state.draft, state.findings)}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Reviewer Notice */}
+                      <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-900 text-xs flex items-center justify-between">
+                        <span>
+                          <strong>Reviewer Scope:</strong> You can accept fixes, edit text, or dismiss with justification. Regulatory sign-off requires Compliance Approver.
                         </span>
-                        <span className="text-[11px] font-mono uppercase bg-surface-muted px-2 py-0.5 rounded">
-                          {asset.type}
+                        <span className="font-mono text-[11px] bg-indigo-500/20 px-2 py-0.5 rounded">
+                          Reviewer Mode
                         </span>
                       </div>
-                      <h4 className="text-sm font-semibold text-text-primary mb-1">
-                        {asset.name}
-                      </h4>
-                      <p className="text-xs font-mono bg-surface p-2 rounded border border-border/60 text-text-primary mb-2">
-                        {asset.value}
-                      </p>
-                      <p className="text-xs text-text-muted leading-relaxed">
-                        {asset.rule}
-                      </p>
                     </div>
-                  ))}
-                </div>
+
+                    {/* Right: Finding Actions Panel (Accept, Edit, Dismiss) */}
+                    <div className="lg:col-span-5">
+                      <div className="bg-surface rounded-2xl p-6 border border-border sticky top-20 space-y-4">
+                        {selectedFinding ? (
+                          <>
+                            <div className="flex items-center justify-between pb-3 border-b border-border">
+                              <span className={`text-xs font-mono uppercase px-2.5 py-0.5 rounded-full ${TONE_CLASSES[KIND_META[selectedFinding.kind].tone].chip}`}>
+                                {KIND_META[selectedFinding.kind].label}
+                              </span>
+                              <span className={`text-xs font-mono uppercase font-semibold ${selectedFinding.status === "open" ? "text-warning" : "text-success"}`}>
+                                ● {selectedFinding.status}
+                              </span>
+                            </div>
+
+                            <div>
+                              <span className="text-[11px] uppercase font-mono text-text-muted block mb-1">Flagged Phrase:</span>
+                              <blockquote className="text-sm font-serif italic bg-background-soft p-3 rounded-lg border border-border">
+                                &quot;{selectedFinding.phrase}&quot;
+                              </blockquote>
+                            </div>
+
+                            <div>
+                              <span className="text-[11px] uppercase font-mono text-text-muted block mb-1">Citation / Evidence:</span>
+                              <p className="text-xs text-text-secondary leading-relaxed">{selectedFinding.evidence}</p>
+                            </div>
+
+                            <div className="bg-background-soft p-3 rounded-xl border border-border">
+                              <span className="text-[11px] uppercase font-mono text-brand-green font-semibold block mb-1">
+                                Intent-Preserving Fix:
+                              </span>
+                              <p className="text-xs font-serif font-medium text-text-primary">{selectedFinding.suggestedFix}</p>
+                            </div>
+
+                            {/* Reviewer Action Buttons */}
+                            {selectedFinding.status === "open" && (
+                              <div className="pt-3 border-t border-border flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleAcceptFix(selectedFinding.id)}
+                                  className="flex-1 py-2.5 rounded-pill bg-brand-green text-on-dark text-xs uppercase font-mono font-semibold tracking-wider hover:bg-brand-green-dark transition-all"
+                                >
+                                  Accept Fix
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCustomEditText(selectedFinding.suggestedFix);
+                                    setIsEditingFix(true);
+                                  }}
+                                  className="px-3.5 py-2.5 rounded-pill border border-border text-xs uppercase font-mono font-semibold hover:bg-background-soft transition-all"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowDismissModal(true)}
+                                  className="px-3.5 py-2.5 rounded-pill border border-critical/30 text-critical text-xs uppercase font-mono font-semibold hover:bg-critical-soft transition-all"
+                                >
+                                  Dismiss
+                                </button>
+                              </div>
+                            )}
+
+                            {selectedFinding.status !== "open" && (
+                              <div className="pt-3 border-t border-border flex items-center justify-between text-xs">
+                                <span className="text-success font-mono">Resolved ({selectedFinding.status})</span>
+                                <button
+                                  onClick={() => dispatch({ type: "reopen", id: selectedFinding.id, at: new Date().toISOString() })}
+                                  className="text-brand-green hover:underline font-mono"
+                                >
+                                  Reopen Flag
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-xs text-text-muted text-center py-8">Select a finding to triage.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* REVIEWER: TAB 3 - ALL CAMPAIGNS */}
+                {reviewerTab === "all_campaigns" && (
+                  <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border">
+                    <h3 className="font-serif italic text-2xl text-text-primary mb-2">Cross-Channel Campaign Portfolio</h3>
+                    <div className="divide-y divide-border/60">
+                      {QUEUE.map((item) => (
+                        <div key={item.id} className="py-4 flex items-center justify-between">
+                          <div>
+                            <h4 className="text-sm font-semibold text-text-primary">{item.title}</h4>
+                            <p className="text-xs text-text-muted">{item.channel} · Author: {item.author}</p>
+                          </div>
+                          <span className={`text-[11px] font-mono uppercase px-2.5 py-0.5 rounded-full ${item.status === "approved" ? "bg-success-soft text-success" : "bg-warning-soft text-warning"}`}>
+                            {item.status.replace("_", " ")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* REVIEWER: TAB 4 - FINDINGS HUB */}
+                {reviewerTab === "findings" && (
+                  <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border space-y-4">
+                    <h3 className="font-serif italic text-2xl text-text-primary">Active Findings Catalog</h3>
+                    <div className="space-y-3">
+                      {state.findings.map((f) => (
+                        <div key={f.id} className="p-4 rounded-xl bg-background-soft border border-border flex items-center justify-between">
+                          <div>
+                            <span className="text-xs font-mono font-semibold text-brand-green">{f.ruleId || f.factId}</span>
+                            <h4 className="text-sm font-medium text-text-primary">{f.title}</h4>
+                            <p className="text-xs text-text-muted">&quot;{f.phrase}&quot;</p>
+                          </div>
+                          <span className={`text-[11px] font-mono uppercase px-2 py-0.5 rounded-full ${f.status === "open" ? "bg-warning-soft text-warning" : "bg-success-soft text-success"}`}>
+                            {f.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* REVIEWER: TAB 5 - DECISIONS */}
+                {reviewerTab === "decisions" && (
+                  <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border">
+                    <h3 className="font-serif italic text-2xl text-text-primary mb-2">Logged Reviewer Decisions</h3>
+                    <p className="text-xs text-text-muted mb-4">Historical triage events feeding the Brand Brain learning loop.</p>
+                    <div className="divide-y divide-border/60">
+                      {state.audit.filter((a) => a.action.includes("ACCEPTED") || a.action.includes("DISMISSED") || a.action.includes("EDITED")).map((entry) => (
+                        <div key={entry.id} className="py-3 flex items-center justify-between text-xs">
+                          <div>
+                            <span className="font-semibold text-text-primary">{entry.action}</span>
+                            <p className="text-text-muted">{entry.detail}</p>
+                          </div>
+                          <span className="font-mono text-[11px] text-text-muted">{entry.at.slice(11, 16)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
 
-        {/* TAB 3: Review Queue */}
-        {activeTab === "queue" && (
-          <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border">
-            <h3 className="font-serif italic text-2xl text-text-primary mb-2">
-              Cross-Channel Review Queue
-            </h3>
-            <p className="text-xs sm:text-sm text-text-muted mb-6">
-              Marketing campaigns routed for automated analysis and human governance.
-            </p>
-
-            <div className="divide-y divide-border/60">
-              {QUEUE.map((item) => (
-                <div
-                  key={item.id}
-                  className="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-                >
+            {/* ─────────────────────────────────────────────────────────────
+                ROLE 3: COMPLIANCE APPROVER WORKSPACE ("Is this safe to approve?")
+            ───────────────────────────────────────────────────────────── */}
+            {authenticatedRole === "approver" && (
+              <div className="space-y-6 max-w-6xl mx-auto">
+                {/* Approver Header Banner */}
+                <div className="bg-surface rounded-2xl p-6 border border-border shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div>
-                    <h4 className="text-sm font-semibold text-text-primary">
-                      {item.title}
-                    </h4>
-                    <p className="text-xs text-text-muted mt-0.5">
-                      {item.channel} · Author: {item.author} · Updated {item.updated}
+                    <span className="text-[11px] font-mono uppercase bg-emerald-500/10 text-emerald-800 px-2.5 py-0.5 rounded-full font-semibold">
+                      Statutory Approval Gateway
+                    </span>
+                    <h2 className="font-serif italic text-2xl sm:text-3xl text-text-primary mt-1">
+                      Compliance & Legal Sign-Off
+                    </h2>
+                    <p className="text-xs sm:text-sm text-text-muted mt-0.5">
+                      Verify regulatory compliance, ensure zero statutory liabilities, and issue tamper-evident approval certificates.
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono text-text-secondary">
-                      {item.findings} Findings
-                    </span>
-                    <span
-                      className={`text-[11px] font-mono uppercase px-2.5 py-0.5 rounded-full ${
-                        item.status === "approved"
-                          ? "bg-success-soft text-success"
-                          : item.status === "in_review"
-                          ? "bg-warning-soft text-warning"
-                          : "bg-surface-muted text-text-secondary"
-                      }`}
-                    >
-                      {item.status.replace("_", " ")}
-                    </span>
-                  </div>
+                  <span className="text-xs font-mono uppercase bg-surface-muted px-3 py-1.5 rounded-full border border-border text-text-secondary font-medium">
+                    SEBI Clause 7B Signatory
+                  </span>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {/* TAB 4: Governance Insights & Learning Loop */}
-        {activeTab === "insights" && (
-          <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border space-y-6">
-            <div>
-              <h3 className="font-serif italic text-2xl text-text-primary mb-2">
-                Governance Insights & Learning Loop
-              </h3>
-              <p className="text-xs sm:text-sm text-text-muted">
-                Human reviewer dismissals identify ambiguous or over-restrictive brand rules.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {RULE_INSIGHTS.map((ri) => (
-                <div
-                  key={ri.ruleId}
-                  className={`p-5 rounded-xl border ${
-                    ri.flag === "unclear"
-                      ? "bg-warning-soft/20 border-warning/40"
-                      : "bg-background-soft border-border"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-mono text-xs font-semibold text-brand-green">
-                      {ri.ruleId}
-                    </span>
-                    <span
-                      className={`text-xs font-mono font-semibold ${
-                        ri.flag === "unclear" ? "text-warning" : "text-text-muted"
-                      }`}
-                    >
-                      {(ri.dismissalRate * 100).toFixed(0)}% Dismissal Rate
-                    </span>
-                  </div>
-
-                  <h4 className="text-sm font-semibold text-text-primary mb-2">
-                    {ri.title}
-                  </h4>
-
-                  {ri.flag === "unclear" && (
-                    <span className="inline-block text-[11px] uppercase font-mono bg-warning-soft text-warning px-2 py-0.5 rounded-full mb-3">
-                      ⚠️ Rule Friction Detected
-                    </span>
-                  )}
-
-                  {ri.feedback.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-border/60">
-                      <span className="text-[11px] uppercase font-mono text-text-muted block mb-1">
-                        Recent Dismissal Feedback:
-                      </span>
-                      <ul className="text-xs text-text-secondary space-y-1 italic">
-                        {ri.feedback.map((fb, idx) => (
-                          <li key={idx}>“{fb}”</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 5: Tamper-Evident SHA-256 Audit Trail */}
-        {activeTab === "audit" && (
-          <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-              <div>
-                <h3 className="font-serif italic text-2xl text-text-primary mb-1">
-                  Cryptographic Audit Chain
-                </h3>
-                <p className="text-xs text-text-muted">
-                  Every human decision is sealed in an append-only SHA-256 hash block.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
-                <span className="text-xs font-mono font-semibold text-success">
-                  Mathematical Integrity Verified
-                </span>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs font-sans">
-                <thead>
-                  <tr className="border-b border-border text-text-muted font-mono uppercase">
-                    <th className="py-2.5">Block ID</th>
-                    <th>Timestamp</th>
-                    <th>Actor & Role</th>
-                    <th>Action</th>
-                    <th>Details</th>
-                    <th>Block SHA-256</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/60">
-                  {state.audit.map((entry) => (
-                    <tr key={entry.id} className="hover:bg-background-soft/60">
-                      <td className="py-3 font-mono font-semibold text-brand-green">
-                        {entry.id}
-                      </td>
-                      <td className="text-text-muted font-mono whitespace-nowrap">
-                        {entry.at.replace("T", " ").slice(0, 19)}
-                      </td>
-                      <td className="font-medium text-text-primary">
-                        {entry.actor} ({entry.role})
-                      </td>
-                      <td>
-                        <span className="font-mono text-[11px] bg-surface-muted px-2 py-0.5 rounded">
-                          {entry.action}
+                {/* APPROVER: TAB 1 - APPROVAL QUEUE */}
+                {approverTab === "approval_queue" && (
+                  <div className="space-y-6">
+                    {/* Approver KPI Cards */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="bg-surface p-5 rounded-2xl border border-border">
+                        <span className="text-[11px] font-mono uppercase text-text-muted block mb-1">Ready for Sign-Off</span>
+                        <span className="font-serif italic text-3xl text-success">{openCount === 0 && !isApproved ? 1 : 0}</span>
+                        <span className="text-[11px] text-text-muted block mt-1">All findings resolved</span>
+                      </div>
+                      <div className="bg-surface p-5 rounded-2xl border border-border">
+                        <span className="text-[11px] font-mono uppercase text-text-muted block mb-1">Approval Locked</span>
+                        <span className="font-serif italic text-3xl text-critical">{openCount > 0 ? 1 : 0}</span>
+                        <span className="text-[11px] text-text-muted block mt-1">{openCount} unresolved findings</span>
+                      </div>
+                      <div className="bg-surface p-5 rounded-2xl border border-border">
+                        <span className="text-[11px] font-mono uppercase text-text-muted block mb-1">Certified Approved</span>
+                        <span className="font-serif italic text-3xl text-brand-green">{isApproved ? 1 : 0}</span>
+                        <span className="text-[11px] text-text-muted block mt-1">{isApproved ? "Sealed with SHA-256" : "None sealed"}</span>
+                      </div>
+                      <div className="bg-surface p-5 rounded-2xl border border-border">
+                        <span className="text-[11px] font-mono uppercase text-text-muted block mb-1">Statutory Risk</span>
+                        <span className={`font-serif italic text-xl ${openCount > 0 ? "text-critical" : "text-success"}`}>
+                          {openCount > 0 ? "High Risk" : "Zero Liability"}
                         </span>
-                      </td>
-                      <td className="text-text-secondary max-w-xs truncate">
-                        {entry.detail}
-                      </td>
-                      <td className="font-mono text-text-muted">
-                        {shortHash(entry.hash)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                        <span className="text-[11px] text-text-muted block mt-1">SEBI compliance score</span>
+                      </div>
+                    </div>
+
+                    {/* Active Campaign Card for Approver */}
+                    <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border">
+                      <div className="flex items-center justify-between pb-4 border-b border-border/80 mb-6">
+                        <div>
+                          <span className="text-xs font-mono font-semibold text-brand-green uppercase">Campaign Awaiting Approval</span>
+                          <h3 className="font-serif italic text-2xl text-text-primary mt-0.5">{state.draft.title}</h3>
+                          <p className="text-xs text-text-muted mt-0.5">Author: {state.draft.author} · Channel: {state.draft.channel}</p>
+                        </div>
+
+                        <span className={`text-xs font-mono uppercase px-3 py-1 rounded-full ${isApproved ? "bg-success-soft text-success font-semibold" : openCount === 0 ? "bg-brand-pink-soft text-brand-pink font-semibold" : "bg-critical-soft text-critical font-semibold"}`}>
+                          {isApproved ? "Approved & Certified" : openCount === 0 ? "Ready for Sign-Off" : `Locked (${openCount} Flags)`}
+                        </span>
+                      </div>
+
+                      {/* Statutory Readiness Checklist */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 text-xs">
+                        <div className="p-3.5 rounded-xl bg-background-soft border border-border flex items-center justify-between">
+                          <span>Findings Resolved:</span>
+                          <span className={`font-mono font-semibold ${openCount === 0 ? "text-success" : "text-critical"}`}>
+                            {state.findings.filter((f) => f.status !== "open").length} / {state.findings.length} Resolved
+                          </span>
+                        </div>
+                        <div className="p-3.5 rounded-xl bg-background-soft border border-border flex items-center justify-between">
+                          <span>Evidence Vault Check:</span>
+                          <span className="font-mono text-success font-semibold">Q2 Audited Factsheet Linked ✓</span>
+                        </div>
+                        <div className="p-3.5 rounded-xl bg-background-soft border border-border flex items-center justify-between">
+                          <span>Reviewer Attribution:</span>
+                          <span className="font-mono text-text-primary">Arjun Verma (Editorial Reviewer)</span>
+                        </div>
+                        <div className="p-3.5 rounded-xl bg-background-soft border border-border flex items-center justify-between">
+                          <span>Temporal Validity:</span>
+                          <span className="font-mono text-success font-semibold">Valid through 31 Dec 2026 ✓</span>
+                        </div>
+                      </div>
+
+                      {/* Approval Gate Widget */}
+                      <div className={`p-6 rounded-2xl border transition-all ${isApproved ? "bg-[#0e231a] text-white border-brand-green" : openCount === 0 ? "bg-surface border-brand-green shadow-md" : "bg-surface-muted/50 border-critical/30"}`}>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={`h-2.5 w-2.5 rounded-full ${isApproved ? "bg-success" : openCount === 0 ? "bg-brand-pink" : "bg-critical"}`} />
+                              <h4 className="font-semibold text-sm">
+                                {isApproved
+                                  ? "Cryptographic Approval Certificate Issued"
+                                  : openCount === 0
+                                  ? "All Findings Resolved — Ready for Compliance Sign-Off"
+                                  : `Approval Locked (${openCount} Unresolved Issue${openCount > 1 ? "s" : ""})`}
+                              </h4>
+                            </div>
+                            <p className="text-xs text-text-muted max-w-lg">
+                              {isApproved
+                                ? `Certified by Priya Sundaram (Compliance Approver). Sealed Hash: ${shortHash(state.approval?.contentHash || "")}`
+                                : openCount === 0
+                                ? "As Compliance Approver, you are authorized to seal this approved draft into an immutable audit certificate."
+                                : "Publishing is strictly blocked under corporate compliance policy until all findings are accepted, edited, or justified."}
+                            </p>
+                          </div>
+
+                          {!isApproved && (
+                            <button
+                              type="button"
+                              disabled={openCount > 0}
+                              onClick={handleApprove}
+                              className="px-6 py-3 rounded-pill bg-brand-green text-on-dark text-xs uppercase font-mono font-semibold tracking-wider hover:bg-brand-green-dark transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-md whitespace-nowrap"
+                            >
+                              {openCount === 0 ? "Approve & Seal Certificate" : "Approval Locked"}
+                            </button>
+                          )}
+
+                          {isApproved && (
+                            <span className="text-xs font-mono uppercase bg-success-soft text-success px-3 py-1.5 rounded-full font-semibold">
+                              {state.approval?.certificateId}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* APPROVER: TAB 2 - ACTIVE REVIEW DETAIL */}
+                {approverTab === "active_review" && (
+                  <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border space-y-6">
+                    <h3 className="font-serif italic text-2xl text-text-primary">Statutory Inspection & Live Copy</h3>
+                    <div className="p-4 rounded-xl bg-background-soft border border-border text-base font-serif italic text-text-primary">
+                      {revisedText(state.draft, state.findings)}
+                    </div>
+                    <div className="space-y-3">
+                      <span className="text-xs uppercase font-mono text-brand-green font-semibold">Finding Resolutions</span>
+                      {state.findings.map((f) => (
+                        <div key={f.id} className="p-3 bg-background-soft rounded-lg text-xs flex justify-between items-center">
+                          <span>{f.title} ({f.phrase})</span>
+                          <span className="font-mono font-semibold text-text-primary">{f.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* APPROVER: TAB 3 - BLOCKED */}
+                {approverTab === "blocked" && (
+                  <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border">
+                    <h3 className="font-serif italic text-2xl text-text-primary mb-2">Blocked Campaigns</h3>
+                    <p className="text-xs text-text-muted mb-4">Campaigns held from publication due to statutory or factual breaches.</p>
+                    {openCount > 0 ? (
+                      <div className="p-4 bg-critical-soft/30 border border-critical/30 rounded-xl text-xs flex justify-between items-center">
+                        <div>
+                          <span className="font-semibold text-text-primary block">{state.draft.title}</span>
+                          <span className="text-critical">{openCount} unresolved findings</span>
+                        </div>
+                        <span className="font-mono text-critical font-semibold">BLOCKED</span>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-text-muted">Zero campaigns currently blocked.</p>
+                    )}
+                  </div>
+                )}
+
+                {/* APPROVER: TAB 4 - CERTIFICATES */}
+                {approverTab === "certificates" && (
+                  <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border space-y-4">
+                    <h3 className="font-serif italic text-2xl text-text-primary">Issued Approval Certificates</h3>
+                    {isApproved ? (
+                      <div className="p-5 bg-background-soft rounded-xl border border-border text-xs space-y-2">
+                        <div className="flex justify-between items-center font-mono">
+                          <span className="font-semibold text-brand-green text-sm">{state.approval?.certificateId}</span>
+                          <span className="text-success font-semibold">VALID SEAL</span>
+                        </div>
+                        <p className="text-text-primary font-medium">{state.draft.title}</p>
+                        <p className="text-text-muted font-mono">Sealed Hash: {state.approval?.contentHash}</p>
+                        <p className="text-text-muted">Approved by {state.approval?.approvedBy} on {state.approval?.at.slice(0, 10)}</p>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-text-muted">No certificates issued yet. Resolve all findings and click &quot;Approve &amp; Seal&quot;.</p>
+                    )}
+                  </div>
+                )}
+
+                {/* APPROVER: TAB 5 - AUDIT */}
+                {approverTab === "audit" && (
+                  <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-serif italic text-2xl text-text-primary">Cryptographic Audit Chain</h3>
+                      <span className="text-xs font-mono text-success font-semibold">✓ Mathematical Integrity Verified</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs font-sans">
+                        <thead>
+                          <tr className="border-b border-border text-text-muted font-mono uppercase">
+                            <th className="py-2">Block</th>
+                            <th>Timestamp</th>
+                            <th>Actor &amp; Role</th>
+                            <th>Action</th>
+                            <th>Hash</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/60">
+                          {state.audit.map((entry) => (
+                            <tr key={entry.id}>
+                              <td className="py-2.5 font-mono text-brand-green">{entry.id}</td>
+                              <td className="text-text-muted font-mono">{entry.at.slice(11, 16)}</td>
+                              <td>{entry.actor} ({entry.role})</td>
+                              <td><span className="bg-surface-muted px-2 py-0.5 rounded font-mono">{entry.action}</span></td>
+                              <td className="font-mono text-text-muted">{shortHash(entry.hash)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ─────────────────────────────────────────────────────────────
+                ROLE 4: ADMIN WORKSPACE ("Is the governance system healthy?")
+            ───────────────────────────────────────────────────────────── */}
+            {authenticatedRole === "admin" && (
+              <div className="space-y-6 max-w-6xl mx-auto">
+                {/* Admin Header Banner */}
+                <div className="bg-surface rounded-2xl p-6 border border-border shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <span className="text-[11px] font-mono uppercase bg-blue-500/10 text-blue-800 px-2.5 py-0.5 rounded-full font-semibold">
+                      System Governance & Administration
+                    </span>
+                    <h2 className="font-serif italic text-2xl sm:text-3xl text-text-primary mt-1">
+                      Platform Overview & Controls
+                    </h2>
+                    <p className="text-xs sm:text-sm text-text-muted mt-0.5">
+                      Maintain the Brand Brain, manage versioned rules, audit cryptographic integrity, and monitor unclear rule friction.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowAddRuleModal(true)}
+                      className="px-4 py-2 rounded-xl bg-brand-green text-on-dark text-xs font-mono uppercase font-medium hover:bg-brand-green-dark transition-colors"
+                    >
+                      + Add Rule
+                    </button>
+                    <button
+                      onClick={() => setShowAddFactModal(true)}
+                      className="px-4 py-2 rounded-xl bg-background-soft border border-border text-xs font-mono text-text-primary hover:border-brand-green transition-colors"
+                    >
+                      + Register Fact
+                    </button>
+                  </div>
+                </div>
+
+                {/* ADMIN: TAB 1 - OVERVIEW */}
+                {adminTab === "overview" && (
+                  <div className="space-y-6">
+                    {/* Admin System KPI Cards */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="bg-surface p-5 rounded-2xl border border-border">
+                        <span className="text-[11px] font-mono uppercase text-text-muted block mb-1">Active Users</span>
+                        <span className="font-serif italic text-3xl text-text-primary">4</span>
+                        <span className="text-[11px] text-text-muted block mt-1">All personas active</span>
+                      </div>
+                      <div className="bg-surface p-5 rounded-2xl border border-border">
+                        <span className="text-[11px] font-mono uppercase text-text-muted block mb-1">Active Rules</span>
+                        <span className="font-serif italic text-3xl text-brand-green">{allRules.length}</span>
+                        <span className="text-[11px] text-text-muted block mt-1">In-force brand policies</span>
+                      </div>
+                      <div className="bg-surface p-5 rounded-2xl border border-border">
+                        <span className="text-[11px] font-mono uppercase text-text-muted block mb-1">Connected Sources</span>
+                        <span className="font-serif italic text-3xl text-text-secondary">{SOURCES.length}</span>
+                        <span className="text-[11px] text-text-muted block mt-1">Audited PDF vaults</span>
+                      </div>
+                      <div className="bg-surface p-5 rounded-2xl border border-border">
+                        <span className="text-[11px] font-mono uppercase text-text-muted block mb-1">System Health</span>
+                        <span className="font-serif italic text-3xl text-success">100%</span>
+                        <span className="text-[11px] text-text-muted block mt-1">SHA-256 chain verified</span>
+                      </div>
+                    </div>
+
+                    {/* Adaptive Learning Loop Summary */}
+                    <div className="bg-surface rounded-2xl p-6 border border-border">
+                      <div className="flex justify-between items-center mb-4">
+                        <h3 className="font-serif italic text-xl text-text-primary">Adaptive Governance: Unclear Rules Radar</h3>
+                        <span className="text-xs font-mono text-warning font-semibold">1 Friction Rule Detected</span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                        {RULE_INSIGHTS.map((ri) => (
+                          <div key={ri.ruleId} className={`p-4 rounded-xl border ${ri.flag === "unclear" ? "bg-warning-soft/20 border-warning/40" : "bg-background-soft border-border"}`}>
+                            <div className="flex justify-between font-mono mb-1">
+                              <span className="font-semibold text-brand-green">{ri.ruleId}</span>
+                              <span className={ri.flag === "unclear" ? "text-warning font-semibold" : "text-text-muted"}>
+                                {(ri.dismissalRate * 100).toFixed(0)}% Dismissal Rate
+                              </span>
+                            </div>
+                            <h4 className="font-semibold text-text-primary mb-2">{ri.title}</h4>
+                            {ri.feedback.length > 0 && (
+                              <p className="text-[11px] text-text-muted italic border-t border-border pt-1">
+                                Recent feedback: &quot;{ri.feedback[0]}&quot;
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ADMIN: TAB 2 - BRAND BRAIN */}
+                {adminTab === "brand_brain" && (
+                  <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="font-serif italic text-2xl text-text-primary">Versioned Rule Catalog</h3>
+                      <button onClick={() => setShowAddRuleModal(true)} className="px-3.5 py-1.5 rounded-pill bg-brand-green text-on-dark text-xs font-mono">
+                        + New Rule
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {allRules.map((rule) => (
+                        <div key={rule.id} className="p-4 rounded-xl bg-background-soft border border-border">
+                          <div className="flex justify-between items-center font-mono text-xs mb-1">
+                            <span className="font-semibold text-brand-green">{rule.id} v{rule.version}</span>
+                            <span className="bg-surface-muted px-2 py-0.5 rounded text-[11px]">{rule.category}</span>
+                          </div>
+                          <h4 className="text-sm font-semibold text-text-primary mb-1">{rule.title}</h4>
+                          <p className="text-xs text-text-secondary">{rule.summary}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ADMIN: TAB 3 - FACTS */}
+                {adminTab === "facts" && (
+                  <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="font-serif italic text-2xl text-text-primary">Temporal Fact Ledger</h3>
+                      <button onClick={() => setShowAddFactModal(true)} className="px-3.5 py-1.5 rounded-pill bg-brand-green text-on-dark text-xs font-mono">
+                        + Register Fact
+                      </button>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs font-sans">
+                        <thead>
+                          <tr className="border-b border-border text-text-muted font-mono uppercase">
+                            <th className="py-2">Fact ID</th>
+                            <th>Metric</th>
+                            <th>Value</th>
+                            <th>Validity Window</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/60">
+                          {allFacts.map((fact, idx) => (
+                            <tr key={idx}>
+                              <td className="py-2.5 font-mono text-brand-green">{fact.id} v{fact.version}</td>
+                              <td className="font-medium text-text-primary">{fact.label}</td>
+                              <td className="font-mono">{fact.value}</td>
+                              <td className="text-text-muted font-mono">{fact.validFrom || "2026-01-01"} → {fact.validUntil}</td>
+                              <td>
+                                <span className={`px-2 py-0.5 rounded-full font-mono text-[11px] ${fact.status === "current" ? "bg-success-soft text-success" : "bg-warning-soft text-warning"}`}>
+                                  {fact.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* ADMIN: TAB 4 - TERMINOLOGY */}
+                {adminTab === "terminology" && (
+                  <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border space-y-4">
+                    <h3 className="font-serif italic text-2xl text-text-primary">Brand Glossary &amp; Design Tokens</h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs font-sans">
+                        <thead>
+                          <tr className="border-b border-border text-text-muted font-mono uppercase">
+                            <th className="py-2 text-critical">Disallowed Phrasing</th>
+                            <th className="text-success">Approved Term</th>
+                            <th>Rationale</th>
+                            <th>Rule</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/60">
+                          {GLOSSARY_TERMS.map((term, idx) => (
+                            <tr key={idx}>
+                              <td className="py-2.5 text-critical font-medium line-through">{term.disallowed}</td>
+                              <td className="text-success font-medium">{term.preferred}</td>
+                              <td className="text-text-secondary">{term.reason}</td>
+                              <td className="font-mono text-brand-green">{term.ruleId}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* ADMIN: TAB 5 - INSIGHTS */}
+                {adminTab === "insights" && (
+                  <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border space-y-4">
+                    <h3 className="font-serif italic text-2xl text-text-primary">Governance Friction &amp; Insights</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                      {RULE_INSIGHTS.map((ri) => (
+                        <div key={ri.ruleId} className="p-4 rounded-xl bg-background-soft border border-border">
+                          <span className="font-mono text-brand-green font-semibold">{ri.ruleId}</span>
+                          <h4 className="font-semibold text-text-primary mt-1">{ri.title}</h4>
+                          <span className="text-[11px] text-text-muted block mt-1">Reviewed {ri.reviews} times · {(ri.dismissalRate * 100).toFixed(0)}% dismissal</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ADMIN: TAB 6 - AUDIT LOGS */}
+                {adminTab === "audit_logs" && (
+                  <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="font-serif italic text-2xl text-text-primary">Cryptographic Audit Chain</h3>
+                      <button
+                        onClick={() => {
+                          const res = verifyChain(state.audit);
+                          alert(res.ok ? "✓ Cryptographic SHA-256 Chain is mathematically intact!" : `Broken link at: ${res.brokenAt}`);
+                        }}
+                        className="px-3.5 py-1.5 rounded-pill bg-background-soft border border-border text-xs font-mono text-brand-green hover:border-brand-green"
+                      >
+                        Verify Chain Integrity
+                      </button>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs font-sans">
+                        <thead>
+                          <tr className="border-b border-border text-text-muted font-mono uppercase">
+                            <th className="py-2">Block</th>
+                            <th>Timestamp</th>
+                            <th>Actor</th>
+                            <th>Action</th>
+                            <th>Hash</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/60">
+                          {state.audit.map((entry) => (
+                            <tr key={entry.id}>
+                              <td className="py-2.5 font-mono text-brand-green">{entry.id}</td>
+                              <td className="text-text-muted font-mono">{entry.at.slice(11, 16)}</td>
+                              <td>{entry.actor} ({entry.role})</td>
+                              <td><span className="bg-surface-muted px-2 py-0.5 rounded font-mono">{entry.action}</span></td>
+                              <td className="font-mono text-text-muted">{shortHash(entry.hash)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* ADMIN: TAB 7 - USERS & ROLES */}
+                {adminTab === "users" && (
+                  <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border space-y-4">
+                    <h3 className="font-serif italic text-2xl text-text-primary">Users &amp; Role-Based Access Control</h3>
+                    <div className="divide-y divide-border/60">
+                      {ROLE_ORDER.map((r) => {
+                        const creds = DEMO_CREDENTIALS[r];
+                        const p = ROLES[r];
+                        return (
+                          <div key={r} className="py-3.5 flex items-center justify-between text-xs">
+                            <div>
+                              <span className="font-semibold text-text-primary block">{creds.name}</span>
+                              <span className="text-text-muted font-mono">{creds.email} · Role: {p.label}</span>
+                            </div>
+                            <span className="text-[11px] font-mono bg-surface-muted px-2.5 py-1 rounded-full text-text-secondary">
+                              {p.summary}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </main>
+        </div>
+      )}
+
+      {/* ──────────────────────────────────────────────────────────────────────────
+          MODAL 1: PERSONA AUTHENTICATION MODAL (Dark Translucent Backdrop Blur)
+      ────────────────────────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {selectedPersonaForLogin && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Dark translucent overlay with subtle backdrop blur */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedPersonaForLogin(null)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+
+            {/* Centered Login Card */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ duration: 0.2 }}
+              className="relative w-full max-w-md bg-surface rounded-3xl p-6 sm:p-8 border border-border shadow-2xl z-10 space-y-5"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-brand-green font-semibold bg-surface-muted px-2.5 py-0.5 rounded-full inline-block mb-1.5">
+                    {DEMO_CREDENTIALS[selectedPersonaForLogin].badge}
+                  </span>
+                  <h3 className="font-serif italic text-2xl text-text-primary">
+                    {DEMO_CREDENTIALS[selectedPersonaForLogin].title}
+                  </h3>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    {DEMO_CREDENTIALS[selectedPersonaForLogin].subtitle}
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setSelectedPersonaForLogin(null)}
+                  className="text-xs font-mono text-text-muted hover:text-text-primary p-1"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {loginError && (
+                <div className="p-3 bg-critical-soft text-critical rounded-xl text-xs font-medium">
+                  {loginError}
+                </div>
+              )}
+
+              <form onSubmit={handleSignIn} className="space-y-4">
+                <div>
+                  <label className="text-[11px] font-mono uppercase tracking-wider text-text-secondary block mb-1">
+                    Email Address:
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    className="w-full text-xs p-3 rounded-xl border border-border bg-background focus:outline-none focus:border-brand-green font-mono"
+                    placeholder="name@veritybrand.demo"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-mono uppercase tracking-wider text-text-secondary block mb-1">
+                    Password:
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    className="w-full text-xs p-3 rounded-xl border border-border bg-background focus:outline-none focus:border-brand-green font-mono"
+                    placeholder="••••••••"
+                  />
+                </div>
+
+                {/* Quick-fill helper button for evaluators/judges */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginEmail(DEMO_CREDENTIALS[selectedPersonaForLogin].email);
+                    setLoginPassword(DEMO_CREDENTIALS[selectedPersonaForLogin].pass);
+                    setLoginError(null);
+                  }}
+                  className="w-full text-left p-2.5 rounded-xl bg-background-soft border border-border/80 text-[11px] font-mono text-text-muted hover:text-brand-green transition-colors flex items-center justify-between"
+                >
+                  <span>Auto-Fill Demo Credentials</span>
+                  <span className="font-semibold text-text-secondary">{DEMO_CREDENTIALS[selectedPersonaForLogin].pass}</span>
+                </button>
+
+                <div className="pt-2 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPersonaForLogin(null)}
+                    className="text-xs px-4 py-2 text-text-muted hover:text-text-primary"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="text-xs px-6 py-2.5 rounded-pill bg-brand-green text-on-dark font-mono uppercase font-semibold tracking-wider hover:bg-brand-green-dark transition-all shadow-md"
+                  >
+                    Sign In
+                  </button>
+                </div>
+              </form>
+            </motion.div>
           </div>
         )}
+      </AnimatePresence>
 
-        {/* MODAL 1: Dismissal Justification Modal */}
-        <AnimatePresence>
-          {showDismissModal && selectedFinding && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
-            >
-              <div className="bg-surface rounded-2xl p-6 sm:p-8 max-w-lg w-full border border-border shadow-xl space-y-4">
-                <h4 className="font-serif italic text-2xl text-text-primary">
-                  Dismiss Finding with Justification
-                </h4>
-                <p className="text-xs text-text-muted">
-                  Dismissals require a clear justification to maintain audit integrity and train the Brand Brain.
-                </p>
+      {/* ──────────────────────────────────────────────────────────────────────────
+          MODAL 2: DISMISSAL JUSTIFICATION MODAL (Reviewer requirement)
+      ────────────────────────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showDismissModal && selectedFinding && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowDismissModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative bg-surface rounded-2xl p-6 sm:p-8 max-w-lg w-full border border-border shadow-2xl z-10 space-y-4">
+              <h4 className="font-serif italic text-2xl text-text-primary">Dismiss Finding with Justification</h4>
+              <p className="text-xs text-text-muted">Dismissals require an auditable written rationale (min. 8 characters) to feed the Brand Brain learning loop.</p>
+              <div className="p-3 bg-background-soft rounded-lg text-xs font-mono text-text-secondary">
+                Dismissing: &quot;{selectedFinding.phrase}&quot; ({selectedFinding.ruleId || selectedFinding.factId})
+              </div>
+              <div>
+                <label className="text-xs font-mono uppercase tracking-wider text-text-secondary block mb-1">Written Justification:</label>
+                <textarea
+                  rows={3}
+                  value={dismissReason}
+                  onChange={(e) => setDismissReason(e.target.value)}
+                  className="w-full text-xs p-3 rounded-lg border border-border bg-background focus:outline-none focus:border-brand-green"
+                  placeholder="e.g. Approved by legal counsel for specific institutional distribution with dated CRISIL certification..."
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setShowDismissModal(false)} className="text-xs px-4 py-2 text-text-muted">Cancel</button>
+                <button
+                  type="button"
+                  disabled={dismissReason.trim().length < 8}
+                  onClick={() => handleConfirmDismiss(selectedFinding.id)}
+                  className="text-xs px-5 py-2.5 rounded-pill bg-critical text-on-dark font-semibold uppercase tracking-wider disabled:opacity-40"
+                >
+                  Confirm Dismissal
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
-                <div className="p-3 bg-background-soft rounded-lg text-xs font-mono text-text-secondary">
-                  Dismissing: “{selectedFinding.phrase}” ({selectedFinding.ruleId || selectedFinding.factId})
+      {/* ──────────────────────────────────────────────────────────────────────────
+          MODAL 3: SCAN NEW CONTENT MODAL (Creator / Admin Intake)
+      ────────────────────────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showScanModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowScanModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative bg-surface rounded-2xl p-6 sm:p-8 max-w-xl w-full border border-border shadow-2xl z-10 space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-border/80">
+                <h4 className="font-serif italic text-2xl text-text-primary">Scan Marketing Copy</h4>
+                <button onClick={() => setShowScanModal(false)} className="text-xs font-mono text-text-muted">✕</button>
+              </div>
+              <p className="text-xs text-text-muted">Test realistic marketing copy generated by agencies, external tools, or employees.</p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScanPreset("agency");
+                    setCustomInputText("Build steady wealth with guaranteed 15% returns from Arthaa Gold Savings Fund! India's #1 fund beating 99% of peers. Hurry up, start a SIP and enjoy zero risk profits!");
+                  }}
+                  className={`text-xs px-3 py-1.5 rounded-lg border font-mono ${scanPreset === "agency" ? "bg-brand-green text-on-dark border-brand-green" : "bg-background-soft text-text-secondary border-border"}`}
+                >
+                  AI Agency Copy (High Risk)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScanPreset("marketing");
+                    setCustomInputText("Arthaa Gold Savings Fund now manages ₹4,200 crore with proven historical growth. Start a SIP today.");
+                  }}
+                  className={`text-xs px-3 py-1.5 rounded-lg border font-mono ${scanPreset === "marketing" ? "bg-brand-green text-on-dark border-brand-green" : "bg-background-soft text-text-secondary border-border"}`}
+                >
+                  Marketing Blast (Expired AUM)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScanPreset("custom");
+                    setCustomInputText("");
+                  }}
+                  className={`text-xs px-3 py-1.5 rounded-lg border font-mono ${scanPreset === "custom" ? "bg-brand-green text-on-dark border-brand-green" : "bg-background-soft text-text-secondary border-border"}`}
+                >
+                  Freeform
+                </button>
+              </div>
+              <div>
+                <label className="text-xs font-mono uppercase tracking-wider text-text-secondary block mb-1">Content Text:</label>
+                <textarea
+                  rows={4}
+                  value={customInputText}
+                  onChange={(e) => setCustomInputText(e.target.value)}
+                  placeholder="Paste marketing copy here..."
+                  className="w-full text-xs p-3.5 rounded-xl border border-border bg-background focus:outline-none focus:border-brand-green font-serif"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setShowScanModal(false)} className="text-xs px-4 py-2 text-text-muted">Cancel</button>
+                <button
+                  type="button"
+                  disabled={!customInputText.trim()}
+                  onClick={handleRunLiveScan}
+                  className="text-xs px-5 py-2.5 rounded-pill bg-brand-green text-on-dark font-semibold uppercase tracking-wider hover:bg-brand-green-dark transition-all disabled:opacity-40"
+                >
+                  Run Dual-Engine Scan
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ──────────────────────────────────────────────────────────────────────────
+          MODAL 4: PRIVACY, CONFIDENTIALITY & AI DISCLOSURE PROTOCOL
+      ────────────────────────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showPrivacyModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowPrivacyModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative bg-surface rounded-2xl p-6 sm:p-8 max-w-xl w-full border border-border shadow-2xl z-10 space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-border/80">
+                <h4 className="font-serif italic text-2xl text-text-primary">Data Privacy &amp; AI Disclosure</h4>
+                <button onClick={() => setShowPrivacyModal(false)} className="text-xs font-mono text-text-muted">✕</button>
+              </div>
+              <div className="space-y-3 text-xs text-text-secondary leading-relaxed">
+                <div className="p-3 bg-background-soft rounded-xl border border-border">
+                  <span className="font-semibold text-text-primary block mb-1">Sovereign Localized Enclave (Zero Model Training)</span>
+                  <p>Customer copy and creative banners are analyzed strictly inside dedicated environments. Content is never shared with third parties or used for AI retraining.</p>
                 </div>
+                <div className="p-3 bg-background-soft rounded-xl border border-border">
+                  <span className="font-semibold text-text-primary block mb-1">Dual-Engine Architecture: AI Proposes, Humans Decide</span>
+                  <p>Deterministic regex handles statutory rules with 100% precision, while vector search verifies factual claims against timestamped source documents.</p>
+                </div>
+                <div className="p-3 bg-background-soft rounded-xl border border-border">
+                  <span className="font-semibold text-text-primary block mb-1">Strict AI Abstention Invariant</span>
+                  <p>When documentary evidence is absent, the AI explicitly abstains and flags for human review instead of inventing false or unverified verdicts.</p>
+                </div>
+              </div>
+              <div className="flex justify-end pt-2">
+                <button type="button" onClick={() => setShowPrivacyModal(false)} className="text-xs px-5 py-2.5 rounded-pill bg-brand-green text-on-dark font-medium">Understood</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
+      {/* ──────────────────────────────────────────────────────────────────────────
+          MODAL 5: ADD RULE MODAL (Admin action)
+      ────────────────────────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showAddRuleModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAddRuleModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative bg-surface rounded-2xl p-6 sm:p-8 max-w-lg w-full border border-border shadow-2xl z-10 space-y-4">
+              <h4 className="font-serif italic text-2xl text-text-primary">Define New Brand Guideline Rule</h4>
+              <div className="space-y-3">
                 <div>
-                  <label className="text-xs font-mono uppercase tracking-wider text-text-secondary block mb-1">
-                    Auditable Justification Reason (min. 8 characters):
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={dismissReason}
-                    onChange={(e) => setDismissReason(e.target.value)}
+                  <label className="text-xs font-mono uppercase tracking-wider text-text-secondary block mb-1">Rule Title:</label>
+                  <input
+                    type="text"
+                    value={newRuleData.title}
+                    onChange={(e) => setNewRuleData({ ...newRuleData, title: e.target.value })}
+                    placeholder="e.g. Mandatory Disclaimer for Derivative Instruments"
                     className="w-full text-xs p-3 rounded-lg border border-border bg-background focus:outline-none focus:border-brand-green"
-                    placeholder="e.g. Approved by legal counsel for specific institutional distribution..."
                   />
                 </div>
-
-                <div className="flex justify-end gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowDismissModal(false);
-                      setDismissReason("");
-                    }}
-                    className="text-xs px-4 py-2 text-text-muted hover:text-text-primary"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    disabled={dismissReason.trim().length < 8}
-                    onClick={() => handleConfirmDismiss(selectedFinding.id)}
-                    className="text-xs px-5 py-2.5 rounded-pill bg-critical text-on-dark font-semibold uppercase tracking-wider disabled:opacity-40"
-                  >
-                    Confirm Dismissal
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* MODAL 2: Live Content Scanner Modal */}
-        <AnimatePresence>
-          {showScanModal && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
-            >
-              <div className="bg-surface rounded-2xl p-6 sm:p-8 max-w-xl w-full border border-border shadow-xl space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-border/80">
-                  <h4 className="font-serif italic text-2xl text-text-primary">
-                    Scan Marketing Content
-                  </h4>
-                  <button
-                    onClick={() => setShowScanModal(false)}
-                    className="text-xs font-mono text-text-muted hover:text-text-primary"
-                  >
-                    ✕ Close
-                  </button>
-                </div>
-                <p className="text-xs text-text-muted">
-                  Test realistic marketing copy generated by agencies, external tools, or employees.
-                </p>
-
-                {/* Preset Selector */}
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setScanPreset("agency");
-                      setCustomInputText(
-                        "Build steady wealth with guaranteed 15% returns from Arthaa Gold Savings Fund! India's #1 fund beating 99% of peers. Hurry up, start a SIP and enjoy zero risk profits!"
-                      );
-                    }}
-                    className={`text-xs px-3 py-1.5 rounded-lg border font-mono ${
-                      scanPreset === "agency"
-                        ? "bg-brand-green text-on-dark border-brand-green"
-                        : "bg-background-soft text-text-secondary border-border"
-                    }`}
-                  >
-                    AI Agency Copy (High Risk)
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setScanPreset("marketing");
-                      setCustomInputText(
-                        "Arthaa Gold Savings Fund now manages ₹4,200 crore with proven historical growth. Start a SIP today."
-                      );
-                    }}
-                    className={`text-xs px-3 py-1.5 rounded-lg border font-mono ${
-                      scanPreset === "marketing"
-                        ? "bg-brand-green text-on-dark border-brand-green"
-                        : "bg-background-soft text-text-secondary border-border"
-                    }`}
-                  >
-                    Marketing Blast (Expired AUM)
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setScanPreset("custom");
-                      setCustomInputText("");
-                    }}
-                    className={`text-xs px-3 py-1.5 rounded-lg border font-mono ${
-                      scanPreset === "custom"
-                        ? "bg-brand-green text-on-dark border-brand-green"
-                        : "bg-background-soft text-text-secondary border-border"
-                    }`}
-                  >
-                    Freeform
-                  </button>
-                </div>
-
-                {/* Textarea */}
                 <div>
-                  <label className="text-xs font-mono uppercase tracking-wider text-text-secondary block mb-1">
-                    Content Text to Verify:
-                  </label>
+                  <label className="text-xs font-mono uppercase tracking-wider text-text-secondary block mb-1">Summary / Policy:</label>
                   <textarea
-                    rows={4}
-                    value={customInputText}
-                    onChange={(e) => setCustomInputText(e.target.value)}
-                    placeholder="Paste marketing copy, newsletter draft, or promotional snippet here..."
-                    className="w-full text-xs p-3.5 rounded-xl border border-border bg-background focus:outline-none focus:border-brand-green font-serif"
+                    rows={2}
+                    value={newRuleData.summary}
+                    onChange={(e) => setNewRuleData({ ...newRuleData, summary: e.target.value })}
+                    placeholder="Statutory or brand policy details..."
+                    className="w-full text-xs p-3 rounded-lg border border-border bg-background focus:outline-none focus:border-brand-green"
                   />
                 </div>
-
-                <div className="flex justify-end gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowScanModal(false)}
-                    className="text-xs px-4 py-2 text-text-muted hover:text-text-primary"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!customInputText.trim()}
-                    onClick={handleRunLiveScan}
-                    className="text-xs px-5 py-2.5 rounded-pill bg-brand-green text-on-dark font-semibold uppercase tracking-wider hover:bg-brand-green-dark transition-all disabled:opacity-40"
-                  >
-                    Run Dual-Engine Scan
-                  </button>
-                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setShowAddRuleModal(false)} className="text-xs px-4 py-2 text-text-muted">Cancel</button>
+                <button
+                  type="button"
+                  disabled={!newRuleData.title.trim()}
+                  onClick={handleCreateRule}
+                  className="text-xs px-5 py-2.5 rounded-pill bg-brand-green text-on-dark font-semibold uppercase tracking-wider disabled:opacity-40"
+                >
+                  Publish Rule v1.0
+                </button>
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
+          </div>
+        )}
+      </AnimatePresence>
 
-        {/* MODAL 3: Add Rule Modal */}
-        <AnimatePresence>
-          {showAddRuleModal && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
-            >
-              <div className="bg-surface rounded-2xl p-6 sm:p-8 max-w-lg w-full border border-border shadow-xl space-y-4">
-                <h4 className="font-serif italic text-2xl text-text-primary">
-                  Define New Brand Guideline Rule
-                </h4>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs font-mono uppercase tracking-wider text-text-secondary block mb-1">
-                      Rule Title:
-                    </label>
-                    <input
-                      type="text"
-                      value={newRuleData.title}
-                      onChange={(e) => setNewRuleData({ ...newRuleData, title: e.target.value })}
-                      placeholder="e.g. Prohibit Unlicensed Comparative Benchmarks"
-                      className="w-full text-xs p-3 rounded-lg border border-border bg-background focus:outline-none focus:border-brand-green"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-mono uppercase tracking-wider text-text-secondary block mb-1">
-                      Guideline Summary:
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={newRuleData.summary}
-                      onChange={(e) => setNewRuleData({ ...newRuleData, summary: e.target.value })}
-                      placeholder="Explanation of the statutory or brand policy..."
-                      className="w-full text-xs p-3 rounded-lg border border-border bg-background focus:outline-none focus:border-brand-green"
-                    />
-                  </div>
+      {/* ──────────────────────────────────────────────────────────────────────────
+          MODAL 6: ADD FACT MODAL (Admin action)
+      ────────────────────────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showAddFactModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAddFactModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative bg-surface rounded-2xl p-6 sm:p-8 max-w-lg w-full border border-border shadow-2xl z-10 space-y-4">
+              <h4 className="font-serif italic text-2xl text-text-primary">Register Audited Fact</h4>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-mono uppercase tracking-wider text-text-secondary block mb-1">Metric Label:</label>
+                  <input
+                    type="text"
+                    value={newFactData.label}
+                    onChange={(e) => setNewFactData({ ...newFactData, label: e.target.value })}
+                    placeholder="e.g. Q3 FY27 Equity Fund AUM"
+                    className="w-full text-xs p-3 rounded-lg border border-border bg-background focus:outline-none focus:border-brand-green"
+                  />
                 </div>
-
-                <div className="flex justify-end gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddRuleModal(false)}
-                    className="text-xs px-4 py-2 text-text-muted hover:text-text-primary"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!newRuleData.title.trim()}
-                    onClick={handleCreateRule}
-                    className="text-xs px-5 py-2.5 rounded-pill bg-brand-green text-on-dark font-semibold uppercase tracking-wider hover:bg-brand-green-dark transition-all disabled:opacity-40"
-                  >
-                    Publish Rule v1.0
-                  </button>
+                <div>
+                  <label className="text-xs font-mono uppercase tracking-wider text-text-secondary block mb-1">Audited Value:</label>
+                  <input
+                    type="text"
+                    value={newFactData.value}
+                    onChange={(e) => setNewFactData({ ...newFactData, value: e.target.value })}
+                    placeholder="e.g. ₹5,200 crore"
+                    className="w-full text-xs p-3 rounded-lg border border-border bg-background focus:outline-none focus:border-brand-green"
+                  />
                 </div>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* MODAL 4: Add Fact Modal */}
-        <AnimatePresence>
-          {showAddFactModal && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
-            >
-              <div className="bg-surface rounded-2xl p-6 sm:p-8 max-w-lg w-full border border-border shadow-xl space-y-4">
-                <h4 className="font-serif italic text-2xl text-text-primary">
-                  Register Audited Fact in Ledger
-                </h4>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs font-mono uppercase tracking-wider text-text-secondary block mb-1">
-                      Metric Label:
-                    </label>
-                    <input
-                      type="text"
-                      value={newFactData.label}
-                      onChange={(e) => setNewFactData({ ...newFactData, label: e.target.value })}
-                      placeholder="e.g. Q3 FY27 Equity Fund AUM"
-                      className="w-full text-xs p-3 rounded-lg border border-border bg-background focus:outline-none focus:border-brand-green"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-mono uppercase tracking-wider text-text-secondary block mb-1">
-                      Audited Value:
-                    </label>
-                    <input
-                      type="text"
-                      value={newFactData.value}
-                      onChange={(e) => setNewFactData({ ...newFactData, value: e.target.value })}
-                      placeholder="e.g. ₹5,120 crore"
-                      className="w-full text-xs p-3 rounded-lg border border-border bg-background focus:outline-none focus:border-brand-green"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddFactModal(false)}
-                    className="text-xs px-4 py-2 text-text-muted hover:text-text-primary"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!newFactData.label.trim() || !newFactData.value.trim()}
-                    onClick={handleCreateFact}
-                    className="text-xs px-5 py-2.5 rounded-pill bg-brand-green text-on-dark font-semibold uppercase tracking-wider hover:bg-brand-green-dark transition-all disabled:opacity-40"
-                  >
-                    Commit to Ledger
-                  </button>
-                </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setShowAddFactModal(false)} className="text-xs px-4 py-2 text-text-muted">Cancel</button>
+                <button
+                  type="button"
+                  disabled={!newFactData.label.trim() || !newFactData.value.trim()}
+                  onClick={handleCreateFact}
+                  className="text-xs px-5 py-2.5 rounded-pill bg-brand-green text-on-dark font-semibold uppercase tracking-wider disabled:opacity-40"
+                >
+                  Commit Fact
+                </button>
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* MODAL 5: Privacy, Confidentiality & AI Disclosure Protocol */}
-        <AnimatePresence>
-          {showPrivacyModal && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
-            >
-              <div className="bg-surface rounded-2xl p-6 sm:p-8 max-w-xl w-full border border-border shadow-xl space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-border/80">
-                  <h4 className="font-serif italic text-2xl text-text-primary">
-                    Data Privacy & AI Disclosure
-                  </h4>
-                  <button
-                    onClick={() => setShowPrivacyModal(false)}
-                    className="text-xs font-mono text-text-muted hover:text-text-primary"
-                  >
-                    ✕ Close
-                  </button>
-                </div>
-
-                <div className="space-y-3 text-xs text-text-secondary leading-relaxed">
-                  <div className="p-3 bg-background-soft rounded-xl border border-border">
-                    <span className="font-semibold text-text-primary block mb-1">
-                      🔒 Sovereign Localized Enclave (Zero Model Training)
-                    </span>
-                    <p>
-                      VerityBrand operates in customer-dedicated execution environments. Draft copy, creative banners, and financial documents are never ingested into third-party public models or used for AI retraining.
-                    </p>
-                  </div>
-
-                  <div className="p-3 bg-background-soft rounded-xl border border-border">
-                    <span className="font-semibold text-text-primary block mb-1">
-                      ⚙️ Dual-Engine Architecture: AI Proposes, Humans Decide
-                    </span>
-                    <p>
-                      Deterministic regex engines enforce statutory non-negotiables (e.g. SEBI returns prohibition), while grounded vector retrieval verifies factual claims against timestamped source vaults.
-                    </p>
-                  </div>
-
-                  <div className="p-3 bg-background-soft rounded-xl border border-border">
-                    <span className="font-semibold text-text-primary block mb-1">
-                      🛡️ Strict AI Abstention Invariant
-                    </span>
-                    <p>
-                      When documentary evidence is missing or ambiguous, the engine explicitly abstains and tags the claim as &ldquo;Needs Human Verification&rdquo; rather than fabricating a false or unverified approval verdict.
-                    </p>
-                  </div>
-
-                  <div className="p-3 bg-background-soft rounded-xl border border-border">
-                    <span className="font-semibold text-text-primary block mb-1">
-                      ⛓️ SHA-256 Tamper-Evident Audit Ledger
-                    </span>
-                    <p>
-                      Every edit, dismissal, and sign-off is hashed and chained into an append-only mathematical ledger, guaranteeing accountability across all review roles.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex justify-end pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowPrivacyModal(false)}
-                    className="text-xs px-5 py-2.5 rounded-pill bg-brand-green text-on-dark font-medium"
-                  >
-                    Understood
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+          </div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }

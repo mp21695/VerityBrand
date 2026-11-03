@@ -66,13 +66,19 @@ export function Header({ onOpenWorkspace }: HeaderProps) {
 
           {/* Action Button & Mobile Menu Toggle */}
           <div className="flex items-center gap-3">
-            <button
-              onClick={onOpenWorkspace}
+            <Link
+              href="/workspace"
+              onClick={(e) => {
+                if (onOpenWorkspace) {
+                  e.preventDefault();
+                  onOpenWorkspace();
+                }
+              }}
               className="group/btn hidden sm:inline-flex items-center gap-2 rounded-pill bg-[#eee8db] text-[#1c1a18] px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.08em] transition-all duration-300 hover:bg-white active:scale-95 shadow-sm"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-[#c26043] group-hover/btn:scale-125 transition-transform" />
               <RollText>{nav.cta.label}</RollText>
-            </button>
+            </Link>
 
             {/* Mobile Hamburger toggle */}
             <button

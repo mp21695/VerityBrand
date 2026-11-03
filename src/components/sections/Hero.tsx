@@ -2,6 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { motion } from "motion/react";
 import { RollText } from "@/components/ui/Button";
 import { SITE_DATA } from "@/data/siteData";
@@ -53,13 +54,19 @@ export function Hero({ onOpenWorkspace }: HeroProps) {
           </h1>
 
           <div className="flex flex-wrap items-center gap-4 sm:gap-5">
-            <button
-              onClick={onOpenWorkspace}
+            <Link
+              href="/workspace"
+              onClick={(e) => {
+                if (onOpenWorkspace) {
+                  e.preventDefault();
+                  onOpenWorkspace();
+                }
+              }}
               className="group/btn relative inline-flex items-center gap-2.5 rounded-pill bg-[#eee8db] text-[#1c1a18] min-h-12 px-7 py-3.5 t-eyebrow font-semibold uppercase tracking-[0.08em] shadow-lg transition-all duration-300 hover:bg-white active:scale-95"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-[#c26043] transition-transform duration-300 group-hover/btn:scale-150" />
               <RollText>{hero.primaryCta.label}</RollText>
-            </button>
+            </Link>
 
             <a
               href={hero.secondaryCta.href}

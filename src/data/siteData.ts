@@ -136,7 +136,7 @@ export const SITE_DATA: SiteData = {
     ],
     cta: {
       label: "OPEN WORKSPACE",
-      href: "#workspace",
+      href: "/workspace",
     },
   },
   hero: {
@@ -147,7 +147,7 @@ export const SITE_DATA: SiteData = {
       "Find flaws, verify claims, explain every finding, and move approved content safely toward publication. AI proposes. Humans decide.",
     primaryCta: {
       label: "OPEN WORKSPACE",
-      href: "#workspace",
+      href: "/workspace",
     },
     secondaryCta: {
       label: "SEE HOW IT WORKS",
