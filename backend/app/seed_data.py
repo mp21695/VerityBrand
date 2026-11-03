@@ -11,205 +11,225 @@ from backend.app.audit import record_audit_event
 def seed_database():
     db = SessionLocal()
     try:
-        # Check if already seeded
-        if db.query(Brand).filter(Brand.id == "brand_arthaa").first():
+        # Check if already seeded with brand_nova
+        if db.query(Brand).filter(Brand.id == "brand_nova").first():
             return
 
-        print("Seeding VerityBrand initial governance data...")
+        print("Seeding VerityBrand governance data for NOVA Footwear...")
         now = datetime.datetime.utcnow()
 
-        # 1. Users
-        riya = User(
-            id="user_riya",
-            email="riya@arthaa.com",
-            name="Riya Sharma",
-            role="creator",
-            password_hash=get_password_hash("password123")
-        )
-        arjun = User(
-            id="user_arjun",
-            email="arjun@arthaa.com",
-            name="Arjun Patel",
-            role="compliance_owner",
-            password_hash=get_password_hash("password123")
-        )
-        db.add_all([riya, arjun])
+        # 1. Users (Matching 4 RBAC Personas)
+        users = [
+            User(id="user_riya", email="creator@veritybrand.demo", name="Riya Sharma", role="creator", password_hash=get_password_hash("creator123")),
+            User(id="user_arjun", email="reviewer@veritybrand.demo", name="Arjun Verma", role="reviewer", password_hash=get_password_hash("reviewer123")),
+            User(id="user_priya", email="approver@veritybrand.demo", name="Priya Sundaram", role="approver", password_hash=get_password_hash("approver123")),
+            User(id="user_harini", email="admin@veritybrand.demo", name="Harini Nair", role="admin", password_hash=get_password_hash("admin123")),
+        ]
+        for u in users:
+            existing = db.query(User).filter(User.id == u.id).first()
+            if existing:
+                existing.email = u.email
+                existing.name = u.name
+                existing.role = u.role
+                existing.password_hash = u.password_hash
+            else:
+                db.add(u)
         db.commit()
 
         # 2. Brand
         brand = Brand(
-            id="brand_arthaa",
-            name="Arthaa Finserv",
-            description="Leading wealth management and mutual fund house in India."
+            id="brand_nova",
+            name="NOVA Footwear",
+            description="Performance footwear for everyday athletes."
         )
         db.add(brand)
         db.commit()
 
-        # 3. Source Document E-014
-        e014_content = (
-            "Arthaa Gold Savings Fund (Direct Plan - Growth). "
-            "Total Assets Under Management (AUM) as of audited ledger: ₹3,850 crore. "
-            "Expense ratio: 0.45%. CRISIL Rank 2 (Gold Category). "
-            "All return calculations are indicative and based on 5-year CAGR of 11.4%. "
-            "Audited by S.R. Batliboi & Co. LLP."
+        # 3. Source Documents
+        src_product_facts = (
+            "NOVA Footwear Technical Specification — NOVA AeroRun X1.\n"
+            "Weight: 218 g per shoe.\n"
+            "Upper: Engineered mesh for breathability.\n"
+            "Midsole: EVA foam responsive everyday cushioning.\n"
+            "Outsole: Rubber traction outsole for all-weather grip.\n"
+            "Sizes: 6, 7, 8, 9, 10, 11.\n"
+            "Intended use: Everyday running and training.\n"
+            "Performance Testing: Up to 40 km tested durability certified in road running laboratory tests.\n"
+            "Product launch date: 1 November 2026."
         )
-        e014_hash = hashlib.sha256(e014_content.encode("utf-8")).hexdigest()
-        source_doc = SourceDoc(
-            id="E-014",
-            brand_id="brand_arthaa",
-            title="Q1 FY26 Fund Factsheet & Finance Ledger",
-            type="Finance Ledger",
-            file_uri="/docs/E-014_Q1_FY26_Fund_Factsheet.pdf",
-            hash=e014_hash,
-            content=e014_content
+        src_pricing = (
+            "NOVA Footwear Master Pricing Catalog.\n"
+            "Product: NOVA AeroRun X1.\n"
+            "Standard retail price: ₹4,499.\n"
+            "Launch campaign price: ₹3,999 (Monsoon Running Campaign).\n"
+            "Campaign price validity window: 1 November 2026 to 15 November 2026.\n"
+            "After 15 November 2026, standard price of ₹4,499 applies across all retail channels."
         )
-        db.add(source_doc)
+        src_guidelines = (
+            "NOVA Footwear Brand Guidelines & Claims Policy.\n"
+            "Brand voice: Confident, energetic, practical, athlete-focused, clear and concise. Avoid exaggerated promises.\n"
+            "Preferred terms: lightweight, performance, designed for everyday running, tested durability, responsive cushioning, breathable upper.\n"
+            "Avoid terms: miracle, guaranteed performance, injury-proof, prevents injuries, world's best, India's #1, unbeatable, guaranteed to make you faster.\n"
+            "Claims Policy 1: Quantified claims require approved evidence.\n"
+            "Claims Policy 2: Comparative claims require an approved comparison baseline.\n"
+            "Claims Policy 3: Superlative claims require approved ranking or market evidence.\n"
+            "Claims Policy 4: Performance claims must reference an approved test or product document.\n"
+            "Claims Policy 5: Pricing claims must be checked against valid pricing source."
+        )
+
+        doc1 = SourceDoc(
+            id="SRC-02",
+            brand_id="brand_nova",
+            title="Product_Facts.pdf",
+            type="Technical Specification",
+            file_uri="/docs/Product_Facts.pdf",
+            hash=hashlib.sha256(src_product_facts.encode("utf-8")).hexdigest(),
+            content=src_product_facts
+        )
+        doc2 = SourceDoc(
+            id="SRC-03",
+            brand_id="brand_nova",
+            title="Pricing_Master.pdf",
+            type="Pricing Ledger",
+            file_uri="/docs/Pricing_Master.pdf",
+            hash=hashlib.sha256(src_pricing.encode("utf-8")).hexdigest(),
+            content=src_pricing
+        )
+        doc3 = SourceDoc(
+            id="SRC-01",
+            brand_id="brand_nova",
+            title="Brand_Guidelines.pdf",
+            type="Brand Guidelines",
+            file_uri="/docs/Brand_Guidelines.pdf",
+            hash=hashlib.sha256(src_guidelines.encode("utf-8")).hexdigest(),
+            content=src_guidelines
+        )
+        db.add_all([doc1, doc2, doc3])
         db.commit()
 
-        # 4. Fact F-021 (with 30 Jun 2026 expiry per demo script)
-        f021 = Fact(
-            id="F-021",
-            brand_id="brand_arthaa",
-            key="fund.gold.aum",
-            name="Arthaa Gold Savings Fund AUM",
-            current_version="1.0"
-        )
-        db.add(f021)
-        
-        f021_ver = FactVersion(
-            id="fv-f021-v10",
-            fact_id="F-021",
-            version="1.0",
-            value="₹3,850 crore",
-            unit="₹ crore",
-            scope="Arthaa Gold Savings Fund Q1 FY26",
-            source_doc_id="E-014",
-            valid_from=datetime.datetime(2026, 1, 1),
-            valid_until=datetime.datetime(2026, 6, 30, 23, 59, 59)  # 30 Jun 2026
-        )
-        db.add(f021_ver)
+        # 4. Product Facts
+        facts_data = [
+            ("F-01", "shoe.weight", "Weight per shoe", "218 g per shoe", "NOVA AeroRun X1 Specifications", "SRC-02", datetime.datetime(2026, 10, 1), datetime.datetime(2027, 12, 31)),
+            ("F-02", "shoe.upper", "Upper material", "Engineered mesh", "NOVA AeroRun X1 Materials", "SRC-02", datetime.datetime(2026, 10, 1), datetime.datetime(2027, 12, 31)),
+            ("F-03", "shoe.midsole", "Midsole cushioning", "EVA foam (Responsive everyday cushioning)", "NOVA AeroRun X1 Cushioning", "SRC-02", datetime.datetime(2026, 10, 1), datetime.datetime(2027, 12, 31)),
+            ("F-05", "shoe.durability", "Tested durability", "Up to 40 km tested durability", "Performance Testing", "SRC-02", datetime.datetime(2026, 10, 1), datetime.datetime(2027, 12, 31)),
+            ("F-07", "price.standard", "Standard price", "₹4,499", "NOVA AeroRun X1 Standard Catalog", "SRC-03", datetime.datetime(2026, 10, 1), datetime.datetime(2027, 12, 31)),
+            ("F-08", "price.launch", "Launch campaign price", "₹3,999", "Monsoon Running Campaign", "SRC-03", datetime.datetime(2026, 11, 1), datetime.datetime(2026, 11, 15, 23, 59, 59)),
+        ]
+
+        for fid, fkey, fname, fval, fscope, fsrc, vfrom, vuntil in facts_data:
+            fact_obj = Fact(id=fid, brand_id="brand_nova", key=fkey, name=fname, current_version="1.0")
+            db.add(fact_obj)
+            fver = FactVersion(
+                id=f"fv-{fid.lower()}-v10",
+                fact_id=fid,
+                version="1.0",
+                value=fval,
+                unit="",
+                scope=fscope,
+                source_doc_id=fsrc,
+                valid_from=vfrom,
+                valid_until=vuntil
+            )
+            db.add(fver)
         db.commit()
 
-        # 5. Rule R-07 (v2.0) - Prohibition on Guaranteed Returns
-        r07 = Rule(
-            id="R-07",
-            brand_id="brand_arthaa",
-            name="Prohibition on Guaranteed Returns",
-            type="banned_term",
-            current_version="2.0"
-        )
-        db.add(r07)
-
-        # Deprecated v1.0
-        r07_v1 = RuleVersion(
-            id="rv-r07-v10",
-            rule_id="R-07",
-            version="1.0",
-            pattern_params={"patterns": [r"guaranteed\s+returns?"]},
-            description="SEBI Mutual Fund Regulations forbid promising guaranteed returns.",
-            severity="high",
-            effective_from=datetime.datetime(2025, 1, 1),
-            effective_to=datetime.datetime(2026, 1, 1),
-            created_by="Arjun Patel (Compliance Owner)"
-        )
-        # Active in-force v2.0
-        r07_v2 = RuleVersion(
-            id="rv-r07-v20",
-            rule_id="R-07",
+        # 5. Rules
+        # R-01: Comparative claims require approved comparison baseline
+        r01 = Rule(id="R-01", brand_id="brand_nova", name="Comparative Claims Baseline", type="regex", current_version="2.0")
+        r01_v2 = RuleVersion(
+            id="rv-r01-v20",
+            rule_id="R-01",
             version="2.0",
             pattern_params={
-                "patterns": [
-                    r"guaranteed\s+(\d+%)?\s*returns?",
-                    r"assured\s+returns?",
-                    r"risk-free\s+returns?"
-                ],
-                "suggested_fix": "target returns of 12% (historical average)",
-                "intent_note": "Intent kept: growth appeal without illegal guarantee"
+                "patterns": [r"\d+%\s*lighter", r"\d+%\s*faster"],
+                "suggested_fix": "Lightweight performance footwear designed for everyday running",
+                "intent_note": "Replaces unverified comparative metric with approved product positioning"
             },
-            description="SEBI Mutual Fund Regulations (Clause 7B) strictly forbid promising or guaranteeing specific returns on market-linked schemes.",
+            description="Comparative claims ('% lighter') require an approved comparison baseline and test methodology.",
             severity="high",
-            effective_from=datetime.datetime(2026, 1, 1),
-            effective_to=None,
-            created_by="Arjun Patel (Compliance Owner)"
+            effective_from=datetime.datetime(2026, 10, 1),
+            created_by="Harini Nair (Admin)"
         )
-        db.add_all([r07_v1, r07_v2])
 
-        # 6. Rule R-02 (v1.0) - Mandatory Market Risk Disclaimer
-        r02 = Rule(
-            id="R-02",
-            brand_id="brand_arthaa",
-            name="Mandatory Market Risk Disclaimer",
-            type="required_phrase",
-            current_version="1.0"
-        )
-        db.add(r02)
-        r02_v1 = RuleVersion(
-            id="rv-r02-v10",
-            rule_id="R-02",
+        # R-03: Superlative claims require market evidence
+        r03 = Rule(id="R-03", brand_id="brand_nova", name="Superlative Claims Substantiation", type="tone", current_version="1.0")
+        r03_v1 = RuleVersion(
+            id="rv-r03-v10",
+            rule_id="R-03",
             version="1.0",
             pattern_params={
-                "trigger_regex": r"(?:returns?|fund|scheme|cagr|wealth|invest)",
-                "required_phrase": "Mutual fund investments are subject to market risks, read all scheme related documents carefully."
+                "patterns": [r"india'?s\s+#1\s+running\s+shoe", r"#1\s+running\s+shoe", r"the\s+world'?s\s+best\s+running\s+shoe"],
+                "suggested_fix": "Designed for everyday running"
             },
-            description="Mandatory SEBI disclosure required on all promotional material that mentions returns, funds, or capital investment.",
+            description="Superlative ranking claims require approved market ranking or independent third-party certification.",
             severity="high",
-            effective_from=datetime.datetime(2026, 1, 1),
-            created_by="Arjun Patel"
+            effective_from=datetime.datetime(2026, 10, 1),
+            created_by="Harini Nair (Admin)"
         )
-        db.add(r02_v1)
 
-        # 7. Rule R-12 (v1.0) - Tone / Unsubstantiated Ranking
-        r12 = Rule(
-            id="R-12",
-            brand_id="brand_arthaa",
-            name="Substantiation of Ranking Claims",
-            type="tone",
-            current_version="1.0"
-        )
-        db.add(r12)
-        r12_v1 = RuleVersion(
-            id="rv-r12-v10",
-            rule_id="R-12",
-            version="1.0",
+        # R-04: No guaranteed performance claims
+        r04 = Rule(id="R-04", brand_id="brand_nova", name="Prohibition on Guaranteed Performance", type="banned_term", current_version="2.1")
+        r04_v2 = RuleVersion(
+            id="rv-r04-v21",
+            rule_id="R-04",
+            version="2.1",
             pattern_params={
-                "patterns": [r"india'?s\s+#1\s+fund", r"best\s+fund\s+in\s+india", r"#1\s+fund"],
-                "suggested_fix": "a leading fund in its category"
+                "patterns": [r"guaranteed\s+to\s+make\s+every\s+run\s+faster", r"guaranteed\s+performance", r"guaranteed\s+speed"],
+                "suggested_fix": "Engineered for responsive everyday training",
+                "intent_note": "Replaces absolute speed guarantee with approved training specification"
             },
-            description="Ranking claims (#1, Best Fund) require verifiable third-party certification citation per ASCI / SEBI guidelines.",
-            severity="medium",
-            effective_from=datetime.datetime(2026, 1, 1),
-            created_by="Arjun Patel"
+            description="Content must never state or imply guaranteed speed or performance.",
+            severity="critical",
+            effective_from=datetime.datetime(2026, 10, 1),
+            created_by="Harini Nair (Admin)"
         )
-        db.add(r12_v1)
 
-        # 8. Glossary Terms
-        glossary1 = GlossaryTerm(
-            id="gt-01",
-            brand_id="brand_arthaa",
-            preferred="Gold Savings Fund",
-            disallowed_variants=["Gold Scheme", "Gold Chit"],
-            category="Product Terminology"
-        )
-        db.add(glossary1)
+        db.add_all([r01, r01_v2, r03, r03_v1, r04, r04_v2])
         db.commit()
 
-        # 9. Pre-seeded Draft: Gold Savings Fund Launch Copy (Golden Demo Text)
-        demo_text = "Invest in Arthaa Gold Savings Fund today with guaranteed 12% returns. With an AUM of ₹4,200 crore, it is India's #1 fund for secure wealth generation."
+        # 6. Glossary Terms
+        glossary_items = [
+            ("gt-nova-01", "Designed for Everyday Running", ["Guaranteed Performance", "Guaranteed to make you faster"], "Claims"),
+            ("gt-nova-02", "Responsive Cushioning", ["Injury-Proof", "Prevents Injuries"], "Medical/Claims"),
+            ("gt-nova-03", "Lightweight Performance Footwear", ["India's #1", "World's Best", "Unbeatable"], "Superlatives"),
+            ("gt-nova-04", "Up to 40 km Tested Durability", ["Lasts 500 km"], "Durability"),
+        ]
+        for gid, pref, dis, cat in glossary_items:
+            existing_gt = db.query(GlossaryTerm).filter(GlossaryTerm.id == gid).first()
+            if existing_gt:
+                existing_gt.preferred = pref
+                existing_gt.disallowed_variants = dis
+                existing_gt.category = cat
+            else:
+                db.add(GlossaryTerm(id=gid, brand_id="brand_nova", preferred=pref, disallowed_variants=dis, category=cat))
+        db.commit()
+
+        # 7. Seeded Demo Draft: NOVA AeroRun X1
+        demo_text = (
+            "NOVA AERORUN X1\n\n"
+            "Built for your fastest miles.\n\n"
+            "30% lighter than leading running shoes.\n\n"
+            "Up to 40 km tested durability.\n\n"
+            "India's #1 running shoe.\n\n"
+            "Guaranteed to make every run faster.\n\n"
+            "Now ₹3,999."
+        )
         demo_hash = hashlib.sha256(demo_text.encode("utf-8")).hexdigest()
 
         demo_draft = Draft(
-            id="draft-gold-fund",
-            brand_id="brand_arthaa",
-            title="Gold Savings Fund Launch Copy",
-            campaign="Diwali Wealth Campaign 2026",
+            id="draft-nova-aerorun",
+            brand_id="brand_nova",
+            title="NOVA AeroRun X1 — Monsoon Running Campaign",
+            campaign="Monsoon Running Campaign 2026",
             creator_id="user_riya",
             current_version_number=1
         )
         db.add(demo_draft)
 
         draft_v1 = DraftVersion(
-            id="dv-draft-gold-fund-v1",
-            draft_id="draft-gold-fund",
+            id="dv-draft-nova-aerorun-v1",
+            draft_id="draft-nova-aerorun",
             version_number=1,
             text=demo_text,
             status="draft",
@@ -218,31 +238,31 @@ def seed_database():
         db.add(draft_v1)
         db.commit()
 
-        # Record Genesis Audit Event
+        # 8. Record Genesis Audit Event
         record_audit_event(
             db=db,
             actor_id="system",
             actor_name="VerityBrand Genesis",
             verb="seed_system",
             object_type="brand",
-            object_id="brand_arthaa",
+            object_id="brand_nova",
             payload={
-                "brand": "Arthaa Finserv",
-                "rules_seeded": ["R-07", "R-02", "R-12"],
-                "facts_seeded": ["F-021"],
-                "sources_seeded": ["E-014"]
+                "brand": "NOVA Footwear",
+                "rules_seeded": ["R-01", "R-03", "R-04"],
+                "facts_seeded": ["F-01", "F-05", "F-07", "F-08"],
+                "sources_seeded": ["SRC-01", "SRC-02", "SRC-03"]
             }
         )
         db.commit()
 
-        # Pre-run analysis pipeline on initial demo draft so 4 findings are immediately ready
+        # Pre-run analysis pipeline on initial demo draft
         from backend.app.workers.tasks import run_analysis_pipeline
         run_analysis_pipeline(
-            draft_version_id="dv-draft-gold-fund-v1",
+            draft_version_id="dv-draft-nova-aerorun-v1",
             actor_id="user_riya",
             actor_name="Riya Sharma"
         )
-        print("VerityBrand initial governance seed completed successfully!")
+        print("NOVA Footwear governance seed completed successfully!")
 
     except Exception as e:
         db.rollback()

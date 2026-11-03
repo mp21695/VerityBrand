@@ -98,7 +98,7 @@ class FactVersion(Base):
     version = Column(String(20), nullable=False, default="1.0")
     value = Column(String(100), nullable=False)  # e.g. "3,850 crore" or "3.85e10"
     unit = Column(String(30), nullable=True)   # e.g. "₹ crore"
-    scope = Column(String(200), nullable=False) # e.g. "Arthaa Gold Savings Fund Q1 FY26"
+    scope = Column(String(200), nullable=False) # e.g. "NOVA AeroRun X1 Product Specification"
     source_doc_id = Column(String(50), ForeignKey("source_docs.id"), nullable=True)
     valid_from = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
     valid_until = Column(DateTime, nullable=False)  # e.g. 2026-06-30

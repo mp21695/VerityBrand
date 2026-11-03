@@ -240,7 +240,7 @@ export const SITE_DATA: SiteData = {
       {
         id: "test-1",
         quote:
-          "Before VerityBrand, our growth team spent days arguing with compliance over headline hooks. Now the engine cites the exact SEBI clause, verifies our AUM against the Q2 ledger, and proposes fixes that keep our growth hook intact. We cut review turnaround by 70%.",
+          "Before VerityBrand, our growth team spent days arguing with compliance over headline hooks. Now the engine cites the exact claims policy clause, verifies our product specifications against certified test sheets, and proposes fixes that keep our growth hook intact. We cut review turnaround by 70%.",
         author: "Riya S., 29",
         role: "HEAD OF GROWTH MARKETING",
       },

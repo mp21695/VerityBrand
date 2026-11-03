@@ -95,11 +95,14 @@ class RuleEngine:
                             
                             # Dynamic intent-preserving suggestions
                             if "guaranteed" in matched_text.lower():
-                                suggested_fix = re.sub(r"guaranteed\s+(\d+%)?\s*returns?", r"target returns of \1 (historical average)", matched_text, flags=re.IGNORECASE)
-                                intent_note = "Intent kept: growth and return appeal preserved while removing non-compliant guarantee"
-                            elif "india's #1" in matched_text.lower() or "#1 fund" in matched_text.lower():
-                                suggested_fix = "a leading fund in its category"
-                                intent_note = "Intent kept: prestige and category leadership without unsubstantiated ranking"
+                                suggested_fix = "Engineered for responsive everyday training"
+                                intent_note = "Intent kept: replaces absolute speed guarantee with approved training specification"
+                            elif "30% lighter" in matched_text.lower() or "lighter" in matched_text.lower():
+                                suggested_fix = "Lightweight performance footwear designed for everyday running"
+                                intent_note = "Intent kept: preserves lightweight performance appeal without unverified competitor comparison"
+                            elif "india's #1" in matched_text.lower() or "#1" in matched_text.lower():
+                                suggested_fix = "Designed for everyday running"
+                                intent_note = "Intent kept: retains strong athlete-focused positioning without unverified superlative liability"
                             
                             status = "confirmed" if rule.type != "tone" else "human_review"
                             
@@ -149,7 +152,7 @@ class RuleEngine:
                                 "confidence": 1.0,
                                 "suggested_fix": required_phrase,
                                 "explanation": f"Mandatory compliance disclaimer missing: When mentioning fund returns or schemes, {rule.id} (v{latest_version.version}) requires: '{required_phrase}'.",
-                                "intent_note": "Intent kept: fulfills SEBI statutory disclosure requirement",
+                                "intent_note": "Intent kept: fulfills brand statutory disclosure requirement",
                                 "model_meta": {"engine": "rule_engine_conditional", "rule_code": rule.id, "version": latest_version.version}
                             })
 

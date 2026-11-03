@@ -27,6 +27,10 @@ import {
   type ReviewComment,
   type Rule,
   type Fact,
+  DEMO_CREATIVE_META,
+  DEMO_OCR_REGIONS,
+  type OCRTextRegion,
+  type CreativeAssetMetadata,
   analyzeAnyContent,
   verifyChain,
 } from "@/lib/review";
@@ -68,7 +72,7 @@ export const DEMO_CREDENTIALS: Record<
     title: "Compliance Approver Login",
     subtitle: "Access campaigns awaiting final approval.",
     hint: "approver@veritybrand.demo / approver123",
-    badge: "SEBI Compliance Approver",
+    badge: "Brand Compliance Approver",
     accentColor: "from-emerald-600/20 to-emerald-500/10 border-emerald-500/40 text-emerald-800",
   },
   admin: {
@@ -114,7 +118,19 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
   const [showScanModal, setShowScanModal] = useState<boolean>(false);
   const [scanPreset, setScanPreset] = useState<"agency" | "marketing" | "custom">("agency");
   const [customInputText, setCustomInputText] = useState<string>(
-    "Build steady wealth with guaranteed 15% returns from Arthaa Gold Savings Fund! India's #1 fund beating 99% of peers. Hurry up, start a SIP and enjoy zero risk profits!"
+    `NOVA AERORUN X1
+
+Built for your fastest miles.
+
+30% lighter than leading running shoes.
+
+Up to 40 km tested durability.
+
+India's #1 running shoe.
+
+Guaranteed to make every run faster.
+
+Now ₹3,999.`
   );
 
   // Brand Brain Sub-tabs / Creation Modals (Admin action)
@@ -132,6 +148,76 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
 
   // Privacy & AI Disclosure Modal
   const [showPrivacyModal, setShowPrivacyModal] = useState<boolean>(false);
+
+  // Multi-Page PDF Source Dossier Viewer State
+  const [activePdfDoc, setActivePdfDoc] = useState<"product_facts" | "pricing_master" | "approved_claims" | "guidelines">("product_facts");
+  const [activePdfPage, setActivePdfPage] = useState<number>(1);
+
+  // Creative Asset & OCR Vision Pipeline State
+  const [creativeMeta, setCreativeMeta] = useState<CreativeAssetMetadata>(DEMO_CREATIVE_META);
+  const [ocrRegions, setOcrRegions] = useState<OCRTextRegion[]>(DEMO_OCR_REGIONS);
+  const [isOcrScanning, setIsOcrScanning] = useState<boolean>(false);
+  const [ocrScanStep, setOcrScanStep] = useState<number>(6); // 0 to 6
+  const [creativeFilter, setCreativeFilter] = useState<"all" | "requires_review" | "verified">("all");
+  const [hoveredRegionId, setHoveredRegionId] = useState<string | null>(null);
+
+  const OCR_PIPELINE_STEPS = [
+    { title: "Creative Received", detail: "Asset ingested · NOVA_AeroRun_Campaign.png · 1024×1024" },
+    { title: "Asset Validation", detail: "Dimensions validated (1:1 Square) · RGB color space · WCAG contrast check" },
+    { title: "OCR Region Localization", detail: "Computer vision bounding box detection · 9 text regions identified" },
+    { title: "Claims Extraction", detail: "5 marketing/performance claims extracted & normalized" },
+    { title: "Evidence Retrieval", detail: "Grounded semantic retrieval against 4 active NOVA evidence PDFs" },
+    { title: "Governance Rules Applied", detail: "R-01, R-02, R-03, R-04, R-05 evaluated · Findings generated" },
+  ];
+
+  const handleCreativeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const objectUrl = URL.createObjectURL(file);
+    setIsOcrScanning(true);
+    setOcrScanStep(0);
+
+    let step = 0;
+    const interval = setInterval(() => {
+      step++;
+      if (step < OCR_PIPELINE_STEPS.length) {
+        setOcrScanStep(step);
+      } else {
+        clearInterval(interval);
+        setIsOcrScanning(false);
+        const nextVersion = creativeMeta.version + 1;
+        setCreativeMeta((prev) => ({
+          ...prev,
+          fileName: file.name,
+          fileUri: objectUrl,
+          version: nextVersion,
+          uploadedAt: new Date().toISOString(),
+        }));
+        dispatch({
+          type: "replace_creative",
+          fileName: file.name,
+          fileUri: objectUrl,
+          at: new Date().toISOString(),
+        });
+      }
+    }, 280);
+  };
+
+  const handleRerunOcr = () => {
+    setIsOcrScanning(true);
+    setOcrScanStep(0);
+    let step = 0;
+    const interval = setInterval(() => {
+      step++;
+      if (step < OCR_PIPELINE_STEPS.length) {
+        setOcrScanStep(step);
+      } else {
+        clearInterval(interval);
+        setIsOcrScanning(false);
+      }
+    }, 250);
+  };
 
   const selectedFinding = state.findings.find((f) => f.id === state.selectedId) || state.findings[0];
   const roleProfile = authenticatedRole ? ROLES[authenticatedRole] : ROLES["creator"];
@@ -217,9 +303,9 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
     const findings = analyzeAnyContent(textToScan, "text");
     const newDraft = {
       id: `draft-custom-${Date.now().toString().slice(-4)}`,
-      title: scanPreset === "agency" ? "AI Agency Generation (Live Intake)" : "Custom Marketing Copy",
-      brand: "Arthaa Finserv",
-      campaign: "Live Scanner Intake",
+      title: scanPreset === "agency" ? "NOVA Campaign Intake (Live Scan)" : "Custom Product Copy",
+      brand: "NOVA Footwear",
+      campaign: "Monsoon Running Campaign 2026",
       channel: "Multi-Channel Retail Campaign",
       author: `${roleProfile.person} (${roleProfile.label})`,
       submittedAt: new Date().toISOString(),
@@ -271,6 +357,423 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
     setShowAddFactModal(false);
     setNewFactData({ id: `F-${Math.floor(Math.random() * 80 + 50)}`, label: "", value: "", validUntil: "2027-12-31" });
   };
+
+  const renderCreativeLeftColumn = () => (
+    <div className="space-y-5">
+      {/* 1. Ingestion Pipeline Status Bar */}
+      <div className="p-4 bg-surface rounded-2xl border border-border shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-border/80">
+          <div className="flex items-center gap-2.5">
+            <span className={`w-2.5 h-2.5 rounded-full ${isOcrScanning ? "bg-amber-400 animate-ping" : "bg-brand-green"}`} />
+            <div>
+              <span className="text-xs font-mono font-semibold text-text-primary block">
+                {isOcrScanning ? "OCR Vision & Grounded Verification Running..." : "Creative OCR Vision Pipeline Complete"}
+              </span>
+              <span className="text-[11px] text-text-muted">
+                {isOcrScanning
+                  ? OCR_PIPELINE_STEPS[ocrScanStep]?.detail
+                  : "Asset: NOVA_AeroRun_Campaign.png · Grounded in 4 active NOVA evidence PDFs"}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleRerunOcr}
+              disabled={isOcrScanning}
+              className="text-[11px] font-mono px-3 py-1.5 rounded-lg border border-border bg-background-soft hover:bg-surface-muted transition-all disabled:opacity-50"
+            >
+              Re-run OCR Scan
+            </button>
+            <label className="text-[11px] font-mono px-3 py-1.5 rounded-lg bg-brand-green text-on-dark font-semibold cursor-pointer hover:bg-brand-green-dark transition-all">
+              Upload / Replace
+              <input type="file" accept="image/*" onChange={handleCreativeUpload} className="hidden" />
+            </label>
+          </div>
+        </div>
+
+        {/* Pipeline Progression Steps */}
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-2 pt-3">
+          {OCR_PIPELINE_STEPS.map((step, idx) => {
+            const isDone = !isOcrScanning || ocrScanStep >= idx;
+            const isCurrent = isOcrScanning && ocrScanStep === idx;
+            return (
+              <div
+                key={idx}
+                className={`p-2 rounded-xl text-[10px] font-mono border transition-all ${
+                  isCurrent
+                    ? "bg-amber-500/10 border-amber-500/60 text-amber-500 font-semibold"
+                    : isDone
+                    ? "bg-brand-green/10 border-brand-green/40 text-brand-green"
+                    : "bg-background-soft border-border/40 text-text-muted"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="font-semibold">Step {idx + 1}</span>
+                  <span>{isCurrent ? "⟳" : isDone ? "✓" : "○"}</span>
+                </div>
+                <div className="truncate font-sans font-medium text-text-primary">{step.title}</div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* OCR Result Metrics */}
+        {!isOcrScanning && (
+          <div className="mt-3 pt-3 border-t border-border/60 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="bg-background-soft px-2 py-0.5 rounded border border-border text-text-secondary">
+                <strong className="text-text-primary">9</strong> text regions
+              </span>
+              <span className="bg-background-soft px-2 py-0.5 rounded border border-border text-text-secondary">
+                <strong className="text-text-primary">5</strong> marketing claims
+              </span>
+              <span className="bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded border border-amber-500/30">
+                <strong className="text-amber-700">{openCount}</strong> requires review
+              </span>
+              <span className="bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded border border-emerald-500/30">
+                <strong className="text-emerald-700">2</strong> verified with evidence
+              </span>
+            </div>
+            <span className="text-text-muted">Draft v{creativeMeta.version} · 1024 × 1024 px</span>
+          </div>
+        )}
+      </div>
+
+      {/* 2. Interactive Creative Image with Bounding Boxes */}
+      <div className="relative rounded-2xl overflow-hidden aspect-square w-full max-w-[540px] mx-auto bg-[#0a0a09] border border-border shadow-2xl group select-none">
+        <Image
+          src={creativeMeta.fileUri}
+          alt={creativeMeta.altText}
+          fill
+          priority
+          className="object-contain"
+        />
+
+        {/* Bounding Box Highlights Overlay */}
+        <div className="absolute inset-0">
+          {ocrRegions.map((region) => {
+            const matchingFinding = state.findings.find((f) => f.id === region.findingId);
+            const isSelected = matchingFinding && state.selectedId === matchingFinding.id;
+            const isResolved = matchingFinding && matchingFinding.status !== "open";
+
+            let boxClass = "border-white/30 bg-white/5 hover:border-white/80";
+            let badgeClass = "bg-black/85 text-white/90 border-white/30";
+            let badgeLabel = region.text;
+
+            if (region.status === "flagged") {
+              if (matchingFinding?.severity === "critical") {
+                boxClass = isSelected
+                  ? "border-rose-500 bg-rose-500/25 ring-4 ring-rose-400/80 shadow-[0_0_25px_rgba(244,63,94,0.9)] z-30 animate-pulse"
+                  : "border-rose-500/80 bg-rose-500/10 hover:bg-rose-500/25 hover:border-rose-400 z-10";
+                badgeClass = "bg-rose-950/95 text-rose-200 border-rose-500 font-semibold";
+                badgeLabel = "R-04 Prohibited Guarantee · Critical";
+              } else {
+                boxClass = isSelected
+                  ? "border-amber-400 bg-amber-400/25 ring-4 ring-amber-300/80 shadow-[0_0_25px_rgba(251,191,36,0.9)] z-30 animate-pulse"
+                  : "border-amber-400/80 bg-amber-400/10 hover:bg-amber-400/25 hover:border-amber-300 z-10";
+                badgeClass = "bg-amber-950/95 text-amber-200 border-amber-400 font-semibold";
+                badgeLabel = matchingFinding?.ruleId === "R-01" ? "R-01 Comparative Claim" : "R-03 Superlative Claim";
+              }
+            } else if (region.status === "verified") {
+              boxClass = isSelected
+                ? "border-emerald-400 bg-emerald-400/25 ring-4 ring-emerald-300/80 shadow-[0_0_25px_rgba(52,211,153,0.9)] z-30"
+                : "border-emerald-500/80 bg-emerald-500/15 hover:bg-emerald-500/25 z-10";
+              badgeClass = "bg-emerald-950/95 text-emerald-200 border-emerald-500 font-semibold";
+              badgeLabel = region.evidenceRef ? `Verified: ${region.evidenceRef} ✓` : "Verified Claim ✓";
+            }
+
+            if (isResolved) {
+              boxClass = "border-emerald-500/60 bg-emerald-500/10 opacity-75";
+              badgeClass = "bg-emerald-950/90 text-emerald-300 border-emerald-500/60";
+              badgeLabel = `Resolved: ${matchingFinding?.status} ✓`;
+            }
+
+            return (
+              <div
+                key={region.id}
+                onClick={() => {
+                  if (region.findingId) {
+                    handleSelectFinding(region.findingId);
+                  }
+                }}
+                onMouseEnter={() => setHoveredRegionId(region.id)}
+                onMouseLeave={() => setHoveredRegionId(null)}
+                style={{
+                  top: `${region.box.y}%`,
+                  left: `${region.box.x}%`,
+                  width: `${region.box.w}%`,
+                  height: `${region.box.h}%`,
+                }}
+                className={`absolute rounded-xl border-2 transition-all duration-200 cursor-pointer flex flex-col justify-start p-1 ${boxClass}`}
+                title={`${region.text} (Click to inspect claim)`}
+              >
+                <div className="flex items-center gap-1 pointer-events-none">
+                  <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border shadow-sm backdrop-blur-md truncate max-w-full ${badgeClass}`}>
+                    {badgeLabel}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 3. Creative Intelligence & Accessibility Card */}
+      <div className="bg-surface rounded-2xl p-5 border border-border shadow-sm space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-border">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-brand-green" />
+            <h4 className="text-xs font-mono uppercase tracking-wider font-semibold text-text-primary">
+              Creative Intelligence & Accessibility Suite
+            </h4>
+          </div>
+          <span className="text-[11px] font-mono bg-brand-green/10 text-brand-green px-2 py-0.5 rounded font-semibold border border-brand-green/30">
+            WCAG 2.1 AA Compliant
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div className="bg-background-soft p-3 rounded-xl border border-border/80">
+            <span className="text-[10px] font-mono uppercase text-text-muted block">Contrast Ratio</span>
+            <span className="text-sm font-mono font-bold text-brand-green block mt-0.5">{creativeMeta.contrastRatio}:1</span>
+            <span className="text-[10px] text-text-secondary">WCAG AA Pass (&gt;4.5:1)</span>
+          </div>
+          <div className="bg-background-soft p-3 rounded-xl border border-border/80">
+            <span className="text-[10px] font-mono uppercase text-text-muted block">Logo Clearspace</span>
+            <span className="text-sm font-mono font-bold text-brand-green block mt-0.5">31px / 51px</span>
+            <span className="text-[10px] text-text-secondary">Brand standard (&ge;24px)</span>
+          </div>
+          <div className="bg-background-soft p-3 rounded-xl border border-border/80">
+            <span className="text-[10px] font-mono uppercase text-text-muted block">Resolution & Ratio</span>
+            <span className="text-sm font-mono font-bold text-text-primary block mt-0.5">1024 × 1024</span>
+            <span className="text-[10px] text-text-secondary">1:1 Square Feed Asset</span>
+          </div>
+          <div className="bg-background-soft p-3 rounded-xl border border-border/80">
+            <span className="text-[10px] font-mono uppercase text-text-muted block">Readability Grade</span>
+            <span className="text-sm font-mono font-bold text-brand-green block mt-0.5">Grade 8</span>
+            <span className="text-[10px] text-text-secondary">High Consumer Clarity</span>
+          </div>
+        </div>
+
+        <div className="p-3 bg-background-soft rounded-xl border border-border/80 text-xs">
+          <span className="text-[10px] font-mono uppercase text-text-muted block mb-1">
+            Verified Screen-Reader Alt-Text:
+          </span>
+          <p className="font-serif italic text-text-secondary text-[11px] leading-relaxed">
+            &quot;{creativeMeta.altText}&quot;
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderClaimsInspector = (isReviewer: boolean) => (
+    <div className="bg-surface rounded-2xl p-6 border border-border sticky top-20 space-y-4">
+      {/* Filter Pills */}
+      <div className="flex items-center justify-between pb-3 border-b border-border">
+        <span className="text-xs font-mono uppercase tracking-wider font-semibold text-text-primary">
+          Detected Claims ({state.findings.length})
+        </span>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setCreativeFilter("all")}
+            className={`text-[10px] font-mono px-2 py-0.5 rounded-lg border transition-all ${
+              creativeFilter === "all" ? "bg-brand-green text-on-dark border-brand-green" : "border-border text-text-muted"
+            }`}
+          >
+            All ({state.findings.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setCreativeFilter("requires_review")}
+            className={`text-[10px] font-mono px-2 py-0.5 rounded-lg border transition-all ${
+              creativeFilter === "requires_review" ? "bg-amber-500 text-black font-semibold border-amber-500" : "border-border text-text-muted"
+            }`}
+          >
+            Review ({openCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setCreativeFilter("verified")}
+            className={`text-[10px] font-mono px-2 py-0.5 rounded-lg border transition-all ${
+              creativeFilter === "verified" ? "bg-emerald-600 text-white font-semibold border-emerald-600" : "border-border text-text-muted"
+            }`}
+          >
+            Verified (2)
+          </button>
+        </div>
+      </div>
+
+      {/* Selected Finding Detail Card */}
+      {selectedFinding ? (
+        <div className="space-y-4 pt-1">
+          <div className="flex items-center justify-between pb-2 border-b border-border/80">
+            <div className="flex items-center gap-2">
+              <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-full ${TONE_CLASSES[KIND_META[selectedFinding.kind].tone].chip}`}>
+                {KIND_META[selectedFinding.kind].label}
+              </span>
+              {selectedFinding.isVerified && (
+                <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 font-semibold border border-emerald-500/40">
+                  Grounded Claim Verified ✓
+                </span>
+              )}
+            </div>
+            <span className={`text-xs font-mono uppercase font-semibold ${selectedFinding.status === "open" ? "text-amber-600" : "text-emerald-600"}`}>
+              ● {selectedFinding.status}
+            </span>
+          </div>
+
+          <div>
+            <span className="text-[11px] uppercase font-mono text-text-muted block mb-1">Detected Text Region:</span>
+            <blockquote className="text-sm font-serif italic bg-background-soft p-3 rounded-xl border border-border text-text-primary">
+              &quot;{selectedFinding.phrase}&quot;
+            </blockquote>
+          </div>
+
+          <div>
+            <span className="text-[11px] uppercase font-mono text-text-muted block mb-1">Governance Analysis & Why Flagged:</span>
+            <p className="text-xs text-text-secondary leading-relaxed bg-background-soft p-3 rounded-xl border border-border">
+              {selectedFinding.why}
+            </p>
+          </div>
+
+          <div className="bg-surface-muted/40 p-3 rounded-xl border border-border text-xs space-y-1">
+            <div className="flex justify-between font-mono text-[11px]">
+              <span className="text-brand-green font-semibold">Evidence Citation:</span>
+              <span>{selectedFinding.ruleId || selectedFinding.factId}</span>
+            </div>
+            <p className="text-text-secondary text-[11px] leading-relaxed">{selectedFinding.evidence}</p>
+          </div>
+
+          {selectedFinding.suggestedFix && (
+            <div className="bg-background-soft p-3.5 rounded-xl border border-border">
+              <span className="text-[11px] uppercase font-mono text-brand-green font-semibold block mb-1">
+                Intent-Preserving Recommendation:
+              </span>
+              <p className="text-xs font-serif font-medium text-text-primary mb-1">
+                {selectedFinding.suggestedFix}
+              </p>
+              {selectedFinding.intentNote && (
+                <p className="text-[11px] text-text-muted italic">{selectedFinding.intentNote}</p>
+              )}
+            </div>
+          )}
+
+          {/* Actions: Creator or Reviewer */}
+          {selectedFinding.status === "open" && (
+            <div className="pt-3 border-t border-border flex items-center gap-2">
+              {isReviewer ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleAcceptFix(selectedFinding.id)}
+                    className="flex-1 py-2.5 rounded-pill bg-brand-green text-on-dark text-xs uppercase font-mono font-semibold tracking-wider hover:bg-brand-green-dark transition-all"
+                  >
+                    Accept Fix
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomEditText(selectedFinding.suggestedFix);
+                      setIsEditingFix(true);
+                    }}
+                    className="px-3.5 py-2.5 rounded-pill border border-border text-xs uppercase font-mono font-semibold hover:bg-background-soft transition-all"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDismissModal(true)}
+                    className="px-3.5 py-2.5 rounded-pill border border-critical/30 text-critical text-xs uppercase font-mono font-semibold hover:bg-critical-soft transition-all"
+                  >
+                    Dismiss
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleAcceptFix(selectedFinding.id)}
+                    className="flex-1 py-2.5 rounded-pill bg-brand-green text-on-dark text-xs uppercase font-semibold font-mono tracking-wider hover:bg-brand-green-dark transition-all"
+                  >
+                    Apply Fix
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomEditText(selectedFinding.suggestedFix);
+                      setIsEditingFix(true);
+                    }}
+                    className="px-4 py-2.5 rounded-pill border border-border text-xs uppercase font-mono font-semibold hover:bg-background-soft transition-all"
+                  >
+                    Edit
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {selectedFinding.status !== "open" && (
+            <div className="pt-3 border-t border-border text-xs text-success font-mono">
+              ✓ Resolved: {selectedFinding.status}
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-text-muted text-center py-8">Select a claim to inspect.</p>
+      )}
+
+      {/* Quick Switching Across All Detected Claims */}
+      <div className="pt-4 border-t border-border space-y-2">
+        <span className="text-[11px] uppercase font-mono text-text-muted block">
+          All Extracted Claims on Image:
+        </span>
+        <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+          {state.findings
+            .filter((f) => {
+              if (creativeFilter === "requires_review") return f.status === "open";
+              if (creativeFilter === "verified") return f.isVerified;
+              return true;
+            })
+            .map((f) => {
+              const isSelected = f.id === state.selectedId;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => handleSelectFinding(f.id)}
+                  className={`w-full text-left p-2.5 rounded-xl border text-xs transition-all flex items-center justify-between gap-2 ${
+                    isSelected
+                      ? "bg-brand-green/15 border-brand-green text-text-primary ring-1 ring-brand-green"
+                      : "bg-background-soft/60 border-border/80 text-text-secondary hover:bg-background-soft"
+                  }`}
+                >
+                  <div className="truncate">
+                    <span className="font-semibold block truncate">{f.phrase}</span>
+                    <span className="text-[10px] font-mono text-text-muted block">
+                      {f.ruleId || f.factId} · {f.title}
+                    </span>
+                  </div>
+                  <span
+                    className={`text-[9px] font-mono uppercase px-2 py-0.5 rounded-full whitespace-nowrap ${
+                      f.status === "open"
+                        ? f.severity === "critical"
+                          ? "bg-rose-500/20 text-rose-500 border border-rose-500/40"
+                          : "bg-amber-500/20 text-amber-600 border border-amber-500/40"
+                        : "bg-emerald-500/20 text-emerald-600 border border-emerald-500/40"
+                    }`}
+                  >
+                    {f.status}
+                  </span>
+                </button>
+              );
+            })}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <section id="workspace" className="min-h-screen bg-[#eee9dc] text-[#1c1a18]">
@@ -694,7 +1197,7 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
                 {creatorTab === "campaigns" && (
                   <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border">
                     <h3 className="font-serif italic text-2xl text-text-primary mb-2">My Submissions & Campaigns</h3>
-                    <p className="text-xs text-text-muted mb-6">Marketing drafts authored by Riya Sharma for Arthaa Finserv.</p>
+                    <p className="text-xs text-text-muted mb-6">Marketing drafts authored by Riya Sharma for NOVA Footwear.</p>
 
                     <div className="divide-y divide-border/60">
                       {QUEUE.map((item) => (
@@ -723,137 +1226,167 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
 
                 {/* CREATOR: TAB 3 - DRAFTS & EDITOR */}
                 {creatorTab === "drafts" && (
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                    {/* Left: Draft Content with Span Highlights & Live Diff */}
-                    <div className="lg:col-span-7 space-y-6">
-                      <div className="bg-surface rounded-2xl p-6 border border-border">
-                        <div className="flex items-center justify-between pb-3 border-b border-border/80 mb-4">
-                          <div>
-                            <h3 className="text-sm font-semibold text-text-primary">{state.draft.title}</h3>
-                            <p className="text-xs text-text-muted">Click flagged spans to view recommended fixes</p>
-                          </div>
-                          <span className="text-xs font-mono bg-surface-muted px-2.5 py-1 rounded-full text-text-secondary">
-                            {openCount} / {state.findings.length} Unresolved
-                          </span>
-                        </div>
-
-                        {/* Text highlights */}
-                        <div className="relative text-lg font-serif leading-relaxed text-text-primary p-4 rounded-xl bg-background-soft border border-border/60 min-h-36">
-                          {segmentText(state.draft.text, state.findings).map((seg, idx) => {
-                            if (!seg.finding) return <span key={idx}>{seg.text}</span>;
-                            const f = seg.finding;
-                            const isSelected = f.id === state.selectedId;
-                            const tone = KIND_META[f.kind].tone;
-                            const resolved = f.status !== "open";
-                            return (
-                              <button
-                                type="button"
-                                key={idx}
-                                onClick={() => handleSelectFinding(f.id)}
-                                className={`mark-span text-left inline-block cursor-pointer ${
-                                  isSelected ? TONE_CLASSES[tone].markActive : TONE_CLASSES[tone].mark
-                                } ${resolved ? "opacity-60 line-through decoration-text-muted" : ""}`}
-                              >
-                                {f.phrase}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {/* Live Intent-Preserving Diff */}
-                        <div className="mt-6 pt-6 border-t border-border">
-                          <span className="text-xs uppercase font-mono tracking-wider text-brand-green font-semibold block mb-2">
-                            Intent-Preserving Live Proposal:
-                          </span>
-                          <p className="text-sm sm:text-base font-serif italic text-text-primary p-4 rounded-xl bg-surface-muted/40 border border-border/80">
-                            {revisedText(state.draft, state.findings)}
-                          </p>
-                        </div>
+                  <div className="space-y-6">
+                    {/* Format Selector Bar for Creator Studio */}
+                    <div className="bg-surface rounded-2xl p-4 border border-border flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setCurrentFormat("text")}
+                          className={`text-xs font-mono px-3.5 py-1.5 rounded-xl transition-all ${
+                            currentFormat === "text"
+                              ? "bg-brand-green text-on-dark font-semibold shadow-xs"
+                              : "bg-background-soft text-text-muted hover:text-text-primary"
+                          }`}
+                        >
+                          Text Copy
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCurrentFormat("image")}
+                          className={`text-xs font-mono px-3.5 py-1.5 rounded-xl transition-all ${
+                            currentFormat === "image"
+                              ? "bg-brand-green text-on-dark font-semibold shadow-xs"
+                              : "bg-background-soft text-text-muted hover:text-text-primary"
+                          }`}
+                        >
+                          Campaign Creative (Visual OCR)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCurrentFormat("document")}
+                          className={`text-xs font-mono px-3.5 py-1.5 rounded-xl transition-all ${
+                            currentFormat === "document"
+                              ? "bg-brand-green text-on-dark font-semibold shadow-xs"
+                              : "bg-background-soft text-text-muted hover:text-text-primary"
+                          }`}
+                        >
+                          Factsheet PDF Dossier
+                        </button>
                       </div>
-
-                      {/* Creator Notice: Cannot Approve */}
-                      <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 text-xs flex items-center justify-between">
-                        <span>
-                          <strong>Creator Scope:</strong> You can apply fixes and edit draft copy. Final regulatory sign-off is restricted to the Compliance Approver.
-                        </span>
-                        <span className="font-mono text-[11px] bg-amber-500/20 px-2 py-0.5 rounded">
-                          Approval Locked
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-text-muted">Draft v{state.draft.version}</span>
+                        <span className="text-xs font-mono bg-surface-muted px-2.5 py-1 rounded-full text-text-secondary">
+                          {openCount} / {state.findings.length} Unresolved
                         </span>
                       </div>
                     </div>
 
-                    {/* Right: Selected Finding Inspector */}
-                    <div className="lg:col-span-5">
-                      <div className="bg-surface rounded-2xl p-6 border border-border sticky top-20 space-y-4">
-                        {selectedFinding ? (
-                          <>
-                            <div className="flex items-center justify-between pb-3 border-b border-border">
-                              <span className={`text-xs font-mono uppercase px-2.5 py-0.5 rounded-full ${TONE_CLASSES[KIND_META[selectedFinding.kind].tone].chip}`}>
-                                {KIND_META[selectedFinding.kind].label}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                      <div className="lg:col-span-7 space-y-6">
+                        {currentFormat === "text" && (
+                          <div className="bg-surface rounded-2xl p-6 border border-border">
+                            <div className="flex items-center justify-between pb-3 border-b border-border/80 mb-4">
+                              <div>
+                                <h3 className="text-sm font-semibold text-text-primary">{state.draft.title}</h3>
+                                <p className="text-xs text-text-muted">Click flagged spans to view recommended fixes</p>
+                              </div>
+                            </div>
+
+                            {/* Text highlights */}
+                            <div className="relative text-lg font-serif leading-relaxed text-text-primary p-4 rounded-xl bg-background-soft border border-border/60 min-h-36">
+                              {segmentText(state.draft.text, state.findings).map((seg, idx) => {
+                                if (!seg.finding) return <span key={idx}>{seg.text}</span>;
+                                const f = seg.finding;
+                                const isSelected = f.id === state.selectedId;
+                                const tone = KIND_META[f.kind].tone;
+                                const resolved = f.status !== "open";
+                                return (
+                                  <button
+                                    type="button"
+                                    key={idx}
+                                    onClick={() => handleSelectFinding(f.id)}
+                                    className={`mark-span text-left inline-block cursor-pointer ${
+                                      isSelected ? TONE_CLASSES[tone].markActive : TONE_CLASSES[tone].mark
+                                    } ${resolved ? "opacity-60 line-through decoration-text-muted" : ""}`}
+                                  >
+                                    {f.phrase}
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {/* Live Intent-Preserving Diff */}
+                            <div className="mt-6 pt-6 border-t border-border">
+                              <span className="text-xs uppercase font-mono tracking-wider text-brand-green font-semibold block mb-2">
+                                Intent-Preserving Live Proposal:
                               </span>
-                              <span className="text-xs font-mono uppercase text-text-muted">● {selectedFinding.status}</span>
+                              <p className="text-sm sm:text-base font-serif italic text-text-primary p-4 rounded-xl bg-surface-muted/40 border border-border/80">
+                                {revisedText(state.draft, state.findings)}
+                              </p>
                             </div>
-
-                            <div>
-                              <span className="text-[11px] uppercase font-mono text-text-muted block mb-1">Flagged Text:</span>
-                              <blockquote className="text-sm font-serif italic bg-background-soft p-3 rounded-lg border border-border">
-                                &quot;{selectedFinding.phrase}&quot;
-                              </blockquote>
-                            </div>
-
-                            <div>
-                              <span className="text-[11px] uppercase font-mono text-text-muted block mb-1">Why It Was Flagged:</span>
-                              <p className="text-xs text-text-secondary leading-relaxed">{selectedFinding.why}</p>
-                            </div>
-
-                            <div className="bg-surface-muted/30 p-3 rounded-xl border border-border text-xs space-y-1">
-                              <div className="flex justify-between font-mono text-[11px]">
-                                <span className="text-brand-green font-semibold">Rule / Evidence:</span>
-                                <span>{selectedFinding.ruleId || selectedFinding.factId}</span>
-                              </div>
-                              <p className="text-text-secondary text-[11px]">{selectedFinding.evidence}</p>
-                            </div>
-
-                            <div className="bg-background-soft p-3.5 rounded-xl border border-border">
-                              <span className="text-[11px] uppercase font-mono text-brand-green font-semibold block mb-1">
-                                Intent-Preserving Fix:
-                              </span>
-                              <p className="text-xs font-serif font-medium text-text-primary mb-1">{selectedFinding.suggestedFix}</p>
-                              <p className="text-[11px] text-text-muted italic">{selectedFinding.intentNote}</p>
-                            </div>
-
-                            {/* Creator Actions: Accept or Edit */}
-                            {selectedFinding.status === "open" && (
-                              <div className="pt-3 border-t border-border flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleAcceptFix(selectedFinding.id)}
-                                  className="flex-1 py-2.5 rounded-pill bg-brand-green text-on-dark text-xs uppercase font-semibold font-mono tracking-wider hover:bg-brand-green-dark transition-all"
-                                >
-                                  Apply Fix
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setCustomEditText(selectedFinding.suggestedFix);
-                                    setIsEditingFix(true);
-                                  }}
-                                  className="px-4 py-2.5 rounded-pill border border-border text-xs uppercase font-mono font-semibold hover:bg-background-soft transition-all"
-                                >
-                                  Edit
-                                </button>
-                              </div>
-                            )}
-
-                            {selectedFinding.status !== "open" && (
-                              <div className="pt-3 border-t border-border text-xs text-success font-mono">
-                                ✓ Resolved: {selectedFinding.status}
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <p className="text-xs text-text-muted text-center py-8">Select a finding to inspect.</p>
+                          </div>
                         )}
+
+                        {currentFormat === "image" && renderCreativeLeftColumn()}
+
+                        {currentFormat === "document" && (
+                          <div className="bg-surface rounded-2xl p-6 border border-border space-y-4">
+                            <div className="flex items-center justify-between pb-3 border-b border-border">
+                              <h4 className="text-sm font-semibold text-text-primary">NOVA Approved Factsheet &amp; Pricing Master</h4>
+                              <a
+                                href="/docs/02_NOVA_Product_Facts.pdf"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs font-mono text-brand-green hover:underline"
+                              >
+                                View PDF ↗
+                              </a>
+                            </div>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-left text-xs border border-border bg-background-soft rounded-lg overflow-hidden">
+                                <thead>
+                                  <tr className="bg-[#264831] text-white font-mono text-[11px]">
+                                    <th className="py-2 px-3">Field</th>
+                                    <th className="py-2 px-3">Approved Specification</th>
+                                    <th className="py-2 px-3">Evidence Reference</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border">
+                                  <tr>
+                                    <td className="py-2 px-3 font-semibold text-text-primary">Product Model</td>
+                                    <td className="py-2 px-3 font-mono">NOVA AeroRun X1</td>
+                                    <td className="py-2 px-3 text-text-muted">Product Brief PB-2026</td>
+                                  </tr>
+                                  <tr className="bg-background-soft/40">
+                                    <td className="py-2 px-3 font-semibold text-text-primary">Certified Weight</td>
+                                    <td className="py-2 px-3 font-mono">218 g per shoe</td>
+                                    <td className="py-2 px-3 text-text-muted">Product Spec PS-2026-018</td>
+                                  </tr>
+                                  <tr>
+                                    <td className="py-2 px-3 font-semibold text-text-primary">Tested Durability</td>
+                                    <td className="py-2 px-3 font-mono text-brand-green font-bold">Up to 40 km</td>
+                                    <td className="py-2 px-3 text-brand-green font-semibold">Performance Test PT-2026-041</td>
+                                  </tr>
+                                  <tr className="bg-background-soft/40">
+                                    <td className="py-2 px-3 font-semibold text-text-primary">Promotional Launch Price</td>
+                                    <td className="py-2 px-3 font-mono text-brand-green font-bold">₹3,999 (Valid 1–15 Nov 2026)</td>
+                                    <td className="py-2 px-3 text-text-muted">03_NOVA_Pricing_Master.pdf</td>
+                                  </tr>
+                                  <tr>
+                                    <td className="py-2 px-3 font-semibold text-text-primary">Standard Retail Price</td>
+                                    <td className="py-2 px-3 font-mono">₹4,499</td>
+                                    <td className="py-2 px-3 text-text-muted">03_NOVA_Pricing_Master.pdf</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Creator Scope Notice */}
+                        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 text-xs flex items-center justify-between">
+                          <span>
+                            <strong>Creator Scope:</strong> You can apply fixes and edit draft copy. Final regulatory sign-off is restricted to the Compliance Approver.
+                          </span>
+                          <span className="font-mono text-[11px] bg-amber-500/20 px-2 py-0.5 rounded">
+                            Approval Locked
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="lg:col-span-5">
+                        {renderClaimsInspector(false)}
                       </div>
                     </div>
                   </div>
@@ -878,19 +1411,64 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
 
                 {/* CREATOR: TAB 5 - SOURCES */}
                 {creatorTab === "sources" && (
-                  <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border">
-                    <h3 className="font-serif italic text-2xl text-text-primary mb-2">Approved Evidence Vault</h3>
-                    <p className="text-xs text-text-muted mb-4">Official source documents backing all verified claims.</p>
+                  <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border space-y-6">
+                    <div>
+                      <h3 className="font-serif italic text-2xl text-text-primary mb-2">NOVA Product Evidence Repository</h3>
+                      <p className="text-xs text-text-muted">Authoritative source documents backing product specifications, pricing ledgers, and testing certificates.</p>
+                    </div>
+
+                    {/* 9-Stage Ingestion Pipeline Flow */}
+                    <div className="p-4 rounded-xl bg-background-soft border border-border/80">
+                      <span className="text-[11px] font-mono uppercase tracking-wider text-brand-green font-semibold block mb-2">
+                        Source Document Ingestion &amp; Indexing Pipeline
+                      </span>
+                      <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-mono text-text-secondary">
+                        <span className="px-2 py-1 rounded bg-surface border border-border text-text-primary">1. File received</span>
+                        <span>→</span>
+                        <span className="px-2 py-1 rounded bg-surface border border-border text-text-primary">2. Document parsed</span>
+                        <span>→</span>
+                        <span className="px-2 py-1 rounded bg-surface border border-border text-text-primary">3. Tables detected</span>
+                        <span>→</span>
+                        <span className="px-2 py-1 rounded bg-surface border border-border text-text-primary">4. Facts extracted</span>
+                        <span>→</span>
+                        <span className="px-2 py-1 rounded bg-surface border border-border text-text-primary">5. Claims extracted</span>
+                        <span>→</span>
+                        <span className="px-2 py-1 rounded bg-surface border border-border text-text-primary">6. Validity dates detected</span>
+                        <span>→</span>
+                        <span className="px-2 py-1 rounded bg-surface border border-border text-text-primary">7. Evidence chunks created</span>
+                        <span>→</span>
+                        <span className="px-2 py-1 rounded bg-surface border border-border text-text-primary">8. Embeddings generated</span>
+                        <span>→</span>
+                        <span className="px-2 py-1 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-semibold">9. Indexed in PostgreSQL + pgvector</span>
+                      </div>
+                    </div>
+
+                    {/* Source Documents List */}
                     <div className="divide-y divide-border/60">
                       {SOURCES.map((src) => (
-                        <div key={src.id} className="py-3 flex items-center justify-between">
+                        <div key={src.id} className="py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                           <div>
-                            <span className="text-xs font-semibold text-text-primary block">{src.title}</span>
-                            <span className="text-[11px] font-mono text-text-muted">Issued: {src.issued} · Kind: {src.kind}</span>
+                            <span className="text-xs font-semibold text-text-primary block font-mono">{src.title}</span>
+                            <span className="text-[11px] font-mono text-text-muted">
+                              ID: {src.id} · Issued: {src.issued} · {src.pages || 2} Pages · Kind: {src.kind}
+                            </span>
                           </div>
-                          <span className="text-[11px] font-mono bg-surface-muted px-2 py-0.5 rounded text-text-secondary">
-                            SHA: {shortHash(src.hash)}
-                          </span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-[10px] font-mono bg-success-soft text-success px-2 py-0.5 rounded-full">
+                              Vector Indexed
+                            </span>
+                            <a
+                              href={src.fileUri || `/docs/${src.title}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs font-mono text-brand-green hover:underline flex items-center gap-1 font-semibold"
+                            >
+                              Open PDF ↗
+                            </a>
+                            <span className="text-[11px] font-mono bg-surface-muted px-2 py-0.5 rounded text-text-secondary">
+                              SHA: {shortHash(src.hash)}
+                            </span>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -951,7 +1529,7 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
                       <div className="bg-surface p-5 rounded-2xl border border-border">
                         <span className="text-[11px] font-mono uppercase text-text-muted block mb-1">Expiring Facts</span>
                         <span className="font-serif italic text-3xl text-text-secondary">1</span>
-                        <span className="text-[11px] text-text-muted block mt-1">F-021 AUM expired</span>
+                        <span className="text-[11px] text-text-muted block mt-1">F-08 Launch Price (1–15 Nov)</span>
                       </div>
                     </div>
 
@@ -1042,35 +1620,302 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
                           </div>
                         )}
 
-                        {currentFormat === "image" && (
-                          <div className="space-y-4">
-                            <div className="relative rounded-xl overflow-hidden aspect-video bg-background-soft max-h-[300px]">
-                              <Image src="/images/cap-fixes.jpg" alt="Campaign Banner" fill className="object-cover" />
-                              <div className="absolute inset-0 bg-black/20 p-4 flex flex-col justify-between">
-                                <span className="bg-critical text-on-dark text-[11px] font-mono px-2 py-0.5 rounded w-max">
-                                  WCAG 2.1 AA Contrast: 2.8:1 (Fails 4.5:1)
-                                </span>
-                                <span className="bg-surface/90 p-2 rounded text-xs text-text-primary">
-                                  Logo Safe Margin: 24px clearance verified
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
+                        {currentFormat === "image" && renderCreativeLeftColumn()}
 
                         {currentFormat === "document" && (
-                          <div className="p-4 bg-background-soft rounded-xl text-xs space-y-2">
-                            <div className="flex justify-between font-mono pb-2 border-b border-border">
-                              <span className="font-semibold text-brand-green">Factsheet Metrics Extracted</span>
-                              <span className="text-text-muted">Source: E-021 Factsheet Q2</span>
+                          <div className="space-y-3">
+                            {/* Document Selector Pills */}
+                            <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-border">
+                              <div className="flex flex-wrap gap-1.5">
+                                {[
+                                  { id: "product_facts", label: "02_NOVA_Product_Facts.pdf", file: "02_NOVA_Product_Facts.pdf" },
+                                  { id: "pricing_master", label: "03_NOVA_Pricing_Master.pdf", file: "03_NOVA_Pricing_Master.pdf" },
+                                  { id: "approved_claims", label: "04_NOVA_Approved_Claims.pdf", file: "04_NOVA_Approved_Claims.pdf" },
+                                  { id: "guidelines", label: "01_NOVA_Brand_Guidelines.pdf", file: "01_NOVA_Brand_Guidelines.pdf" },
+                                ].map((doc) => (
+                                  <button
+                                    key={doc.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setActivePdfDoc(doc.id as any);
+                                      setActivePdfPage(1);
+                                    }}
+                                    className={`text-[11px] font-mono px-2.5 py-1 rounded-lg border transition-all ${
+                                      activePdfDoc === doc.id
+                                        ? "bg-brand-green text-on-dark border-brand-green font-semibold shadow-xs"
+                                        : "bg-surface border-border text-text-secondary hover:bg-background-soft"
+                                    }`}
+                                  >
+                                    {doc.label}
+                                  </button>
+                                ))}
+                              </div>
+
+                              {/* Page Switcher & Download Raw Link */}
+                              <div className="flex items-center gap-2">
+                                <div className="flex items-center border border-border rounded-lg overflow-hidden font-mono text-[11px]">
+                                  <button
+                                    type="button"
+                                    onClick={() => setActivePdfPage(1)}
+                                    className={`px-2 py-0.5 ${activePdfPage === 1 ? "bg-[#1c1a18] text-white font-semibold" : "bg-surface text-text-muted hover:bg-background-soft"}`}
+                                  >
+                                    Page 1
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setActivePdfPage(2)}
+                                    className={`px-2 py-0.5 ${activePdfPage === 2 ? "bg-[#1c1a18] text-white font-semibold" : "bg-surface text-text-muted hover:bg-background-soft"}`}
+                                  >
+                                    Page 2
+                                  </button>
+                                </div>
+
+                                <a
+                                  href={`/docs/${
+                                    activePdfDoc === "product_facts"
+                                      ? "02_NOVA_Product_Facts.pdf"
+                                      : activePdfDoc === "pricing_master"
+                                      ? "03_NOVA_Pricing_Master.pdf"
+                                      : activePdfDoc === "approved_claims"
+                                      ? "04_NOVA_Approved_Claims.pdf"
+                                      : "01_NOVA_Brand_Guidelines.pdf"
+                                  }`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs font-mono text-brand-green hover:underline flex items-center gap-1 font-semibold whitespace-nowrap"
+                                >
+                                  Open PDF ↗
+                                </a>
+                              </div>
                             </div>
-                            <div className="flex justify-between py-1">
-                              <span>Reported AUM: ₹4,200 Cr</span>
-                              <span className="text-warning font-mono">Expired (Ledger is ₹4,850 Cr)</span>
-                            </div>
-                            <div className="flex justify-between py-1">
-                              <span>Total Expense Ratio: 0.65%</span>
-                              <span className="text-success font-mono">SEBI TER Compliant ✓</span>
+
+                            {/* Render Table Content Based on Active Document & Active Page */}
+                            <div className="bg-background-soft p-4 rounded-xl border border-border text-xs space-y-3 font-sans shadow-inner">
+                              {/* 02_NOVA_Product_Facts.pdf */}
+                              {activePdfDoc === "product_facts" && (
+                                <>
+                                  <div className="flex justify-between font-mono text-[11px] pb-2 border-b border-border/80 text-text-muted">
+                                    <span>NOVA Technical Engineering Dossier · Page {activePdfPage} of 2</span>
+                                    <span className="text-brand-green font-semibold">ISO 20871 Tested Standard</span>
+                                  </div>
+
+                                  {activePdfPage === 1 && (
+                                    <div className="space-y-2">
+                                      <span className="font-mono text-[11px] font-semibold text-text-primary uppercase block">
+                                        Table 1: Product Specifications
+                                      </span>
+                                      <table className="w-full text-left text-xs border border-border bg-surface rounded-lg overflow-hidden">
+                                        <thead>
+                                          <tr className="bg-[#264831] text-white font-mono text-[11px]">
+                                            <th className="py-2 px-3">Field</th>
+                                            <th className="py-2 px-3">Approved Value</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-border">
+                                          <tr>
+                                            <td className="py-2 px-3 font-semibold text-text-primary">Product</td>
+                                            <td className="py-2 px-3 font-mono">NOVA AeroRun X1</td>
+                                          </tr>
+                                          <tr className="bg-background-soft/40">
+                                            <td className="py-2 px-3 font-semibold text-text-primary">Weight</td>
+                                            <td className="py-2 px-3 font-mono">218 g</td>
+                                          </tr>
+                                          <tr>
+                                            <td className="py-2 px-3 font-semibold text-text-primary">Upper</td>
+                                            <td className="py-2 px-3 font-mono">Engineered mesh</td>
+                                          </tr>
+                                          <tr className="bg-background-soft/40">
+                                            <td className="py-2 px-3 font-semibold text-text-primary">Midsole</td>
+                                            <td className="py-2 px-3 font-mono">EVA foam</td>
+                                          </tr>
+                                          <tr>
+                                            <td className="py-2 px-3 font-semibold text-text-primary">Outsole</td>
+                                            <td className="py-2 px-3 font-mono">Rubber traction outsole</td>
+                                          </tr>
+                                          <tr className="bg-background-soft/40">
+                                            <td className="py-2 px-3 font-semibold text-text-primary">Sizes</td>
+                                            <td className="py-2 px-3 font-mono">6–11</td>
+                                          </tr>
+                                          <tr>
+                                            <td className="py-2 px-3 font-semibold text-text-primary">Intended use</td>
+                                            <td className="py-2 px-3 font-mono">Everyday running</td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+
+                                  {activePdfPage === 2 && (
+                                    <div className="space-y-2">
+                                      <span className="font-mono text-[11px] font-semibold text-text-primary uppercase block">
+                                        Table 2: Performance Evidence
+                                      </span>
+                                      <table className="w-full text-left text-xs border border-border bg-surface rounded-lg overflow-hidden">
+                                        <thead>
+                                          <tr className="bg-[#264831] text-white font-mono text-[11px]">
+                                            <th className="py-2 px-3">Claim</th>
+                                            <th className="py-2 px-3">Result</th>
+                                            <th className="py-2 px-3">Evidence</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-border">
+                                          <tr>
+                                            <td className="py-2 px-3 font-semibold text-text-primary">Tested durability</td>
+                                            <td className="py-2 px-3 font-mono text-success">Up to 40 km</td>
+                                            <td className="py-2 px-3 font-mono text-text-muted">Performance Test PT-2026-041</td>
+                                          </tr>
+                                          <tr className="bg-background-soft/40">
+                                            <td className="py-2 px-3 font-semibold text-text-primary">Lightweight</td>
+                                            <td className="py-2 px-3 font-mono text-success">218 g</td>
+                                            <td className="py-2 px-3 font-mono text-text-muted">Product Specification PS-2026-018</td>
+                                          </tr>
+                                          <tr>
+                                            <td className="py-2 px-3 font-semibold text-text-primary">Injury prevention</td>
+                                            <td className="py-2 px-3 font-mono text-critical font-medium">Not tested</td>
+                                            <td className="py-2 px-3 font-mono text-text-muted">— (Prohibited from marketing claims)</td>
+                                          </tr>
+                                          <tr className="bg-background-soft/40">
+                                            <td className="py-2 px-3 font-semibold text-text-primary">Guaranteed speed improvement</td>
+                                            <td className="py-2 px-3 font-mono text-critical font-medium">Not tested</td>
+                                            <td className="py-2 px-3 font-mono text-text-muted">— (Prohibited from marketing claims)</td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                </>
+                              )}
+
+                              {/* 03_NOVA_Pricing_Master.pdf */}
+                              {activePdfDoc === "pricing_master" && (
+                                <>
+                                  <div className="flex justify-between font-mono text-[11px] pb-2 border-b border-border/80 text-text-muted">
+                                    <span>NOVA Commercial Pricing Catalog · Page {activePdfPage} of 2</span>
+                                    <span className="text-warning font-semibold">Active Window: 01–15 Nov 2026</span>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <span className="font-mono text-[11px] font-semibold text-text-primary uppercase block">
+                                      Table: Regional Pricing &amp; Promotional Schedule
+                                    </span>
+                                    <table className="w-full text-left text-xs border border-border bg-surface rounded-lg overflow-hidden">
+                                      <thead>
+                                        <tr className="bg-[#264831] text-white font-mono text-[11px]">
+                                          <th className="py-2 px-3">Region</th>
+                                          <th className="py-2 px-3">Standard Price</th>
+                                          <th className="py-2 px-3">Campaign Price</th>
+                                          <th className="py-2 px-3">Valid From</th>
+                                          <th className="py-2 px-3">Valid Until</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-border font-mono">
+                                        <tr>
+                                          <td className="py-2 px-3 font-semibold text-text-primary font-sans">India</td>
+                                          <td className="py-2 px-3">₹4,499</td>
+                                          <td className="py-2 px-3 text-brand-green font-semibold">₹3,999</td>
+                                          <td className="py-2 px-3">01 Nov 2026</td>
+                                          <td className="py-2 px-3 text-warning font-semibold">15 Nov 2026</td>
+                                        </tr>
+                                        <tr className="bg-background-soft/40">
+                                          <td className="py-2 px-3 font-semibold text-text-primary font-sans">Export (SAARC)</td>
+                                          <td className="py-2 px-3">₹4,999</td>
+                                          <td className="py-2 px-3 text-brand-green font-semibold">₹4,499</td>
+                                          <td className="py-2 px-3">01 Nov 2026</td>
+                                          <td className="py-2 px-3 text-warning font-semibold">15 Nov 2026</td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </div>
+
+                                  <div className="p-2.5 rounded-lg bg-warning-soft/30 border border-warning/40 text-[11px] text-text-secondary leading-relaxed">
+                                    <span className="font-semibold text-warning font-mono block mb-0.5">Expiry Radar Rule:</span>
+                                    Promotional pricing ₹3,999 is valid strictly between 01 Nov and 15 Nov 2026. Any copy published outside this window will be flagged as an <b>EXPIRED PROMOTIONAL CLAIM</b>.
+                                  </div>
+                                </>
+                              )}
+
+                              {/* 04_NOVA_Approved_Claims.pdf */}
+                              {activePdfDoc === "approved_claims" && (
+                                <>
+                                  <div className="flex justify-between font-mono text-[11px] pb-2 border-b border-border/80 text-text-muted">
+                                    <span>NOVA Approved &amp; Unapproved Claims Register · Page {activePdfPage} of 2</span>
+                                    <span className="text-brand-green font-semibold">Legal Decision Matrix</span>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <span className="font-mono text-[11px] font-semibold text-text-primary uppercase block">
+                                      Table: Master Claims Decision Matrix
+                                    </span>
+                                    <table className="w-full text-left text-xs border border-border bg-surface rounded-lg overflow-hidden">
+                                      <thead>
+                                        <tr className="bg-[#264831] text-white font-mono text-[11px]">
+                                          <th className="py-2 px-3">Claim</th>
+                                          <th className="py-2 px-3">Status</th>
+                                          <th className="py-2 px-3">Evidence</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-border">
+                                        <tr>
+                                          <td className="py-2 px-3 font-semibold text-text-primary">Designed for everyday running</td>
+                                          <td className="py-2 px-3 font-mono text-success font-semibold">Approved</td>
+                                          <td className="py-2 px-3 font-mono text-text-muted">Product Brief</td>
+                                        </tr>
+                                        <tr className="bg-background-soft/40">
+                                          <td className="py-2 px-3 font-semibold text-text-primary">Lightweight performance footwear</td>
+                                          <td className="py-2 px-3 font-mono text-success font-semibold">Approved</td>
+                                          <td className="py-2 px-3 font-mono text-text-muted">Product Specification</td>
+                                        </tr>
+                                        <tr>
+                                          <td className="py-2 px-3 font-semibold text-text-primary">Up to 40 km tested durability</td>
+                                          <td className="py-2 px-3 font-mono text-success font-semibold">Approved</td>
+                                          <td className="py-2 px-3 font-mono text-text-muted">Performance Test</td>
+                                        </tr>
+                                        <tr className="bg-background-soft/40">
+                                          <td className="py-2 px-3 font-semibold text-text-primary">India&apos;s #1 running shoe</td>
+                                          <td className="py-2 px-3 font-mono text-critical font-semibold">Not approved</td>
+                                          <td className="py-2 px-3 font-mono text-text-muted">No evidence</td>
+                                        </tr>
+                                        <tr>
+                                          <td className="py-2 px-3 font-semibold text-text-primary">30% lighter than leading shoes</td>
+                                          <td className="py-2 px-3 font-mono text-critical font-semibold">Not approved</td>
+                                          <td className="py-2 px-3 font-mono text-text-muted">No comparison baseline</td>
+                                        </tr>
+                                        <tr className="bg-background-soft/40">
+                                          <td className="py-2 px-3 font-semibold text-text-primary">Guaranteed to make you faster</td>
+                                          <td className="py-2 px-3 font-mono text-critical font-semibold">Not approved</td>
+                                          <td className="py-2 px-3 font-mono text-text-muted">No evidence</td>
+                                        </tr>
+                                        <tr>
+                                          <td className="py-2 px-3 font-semibold text-text-primary">Injury-proof cushioning</td>
+                                          <td className="py-2 px-3 font-mono text-critical font-semibold">Not approved</td>
+                                          <td className="py-2 px-3 font-mono text-text-muted">No clinical evidence</td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </>
+                              )}
+
+                              {/* 01_NOVA_Brand_Guidelines.pdf */}
+                              {activePdfDoc === "guidelines" && (
+                                <>
+                                  <div className="flex justify-between font-mono text-[11px] pb-2 border-b border-border/80 text-text-muted">
+                                    <span>NOVA Brand Guidelines &amp; Claims Policy · Page {activePdfPage} of 2</span>
+                                    <span className="text-brand-green font-semibold">Version 2.1 Standard</span>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <span className="font-mono text-[11px] font-semibold text-text-primary uppercase block">
+                                      Brand Voice &amp; Mandatory Guardrails
+                                    </span>
+                                    <div className="p-3 bg-surface rounded-lg border border-border space-y-1.5 text-text-secondary">
+                                      <p>• <b>Voice Pillars:</b> Confident, energetic, practical, athlete-focused, clear and concise.</p>
+                                      <p>• <b>Preferred Language:</b> lightweight, performance, designed for everyday running, tested durability, responsive cushioning, breathable upper, everyday training.</p>
+                                      <p>• <b>Prohibited Language:</b> miracle, guaranteed performance, injury-proof, prevents injuries, world&apos;s best, India&apos;s #1, unbeatable, guaranteed to make you faster.</p>
+                                    </div>
+                                  </div>
+                                </>
+                              )}
                             </div>
                           </div>
                         )}
@@ -1099,83 +1944,7 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
 
                     {/* Right: Finding Actions Panel (Accept, Edit, Dismiss) */}
                     <div className="lg:col-span-5">
-                      <div className="bg-surface rounded-2xl p-6 border border-border sticky top-20 space-y-4">
-                        {selectedFinding ? (
-                          <>
-                            <div className="flex items-center justify-between pb-3 border-b border-border">
-                              <span className={`text-xs font-mono uppercase px-2.5 py-0.5 rounded-full ${TONE_CLASSES[KIND_META[selectedFinding.kind].tone].chip}`}>
-                                {KIND_META[selectedFinding.kind].label}
-                              </span>
-                              <span className={`text-xs font-mono uppercase font-semibold ${selectedFinding.status === "open" ? "text-warning" : "text-success"}`}>
-                                ● {selectedFinding.status}
-                              </span>
-                            </div>
-
-                            <div>
-                              <span className="text-[11px] uppercase font-mono text-text-muted block mb-1">Flagged Phrase:</span>
-                              <blockquote className="text-sm font-serif italic bg-background-soft p-3 rounded-lg border border-border">
-                                &quot;{selectedFinding.phrase}&quot;
-                              </blockquote>
-                            </div>
-
-                            <div>
-                              <span className="text-[11px] uppercase font-mono text-text-muted block mb-1">Citation / Evidence:</span>
-                              <p className="text-xs text-text-secondary leading-relaxed">{selectedFinding.evidence}</p>
-                            </div>
-
-                            <div className="bg-background-soft p-3 rounded-xl border border-border">
-                              <span className="text-[11px] uppercase font-mono text-brand-green font-semibold block mb-1">
-                                Intent-Preserving Fix:
-                              </span>
-                              <p className="text-xs font-serif font-medium text-text-primary">{selectedFinding.suggestedFix}</p>
-                            </div>
-
-                            {/* Reviewer Action Buttons */}
-                            {selectedFinding.status === "open" && (
-                              <div className="pt-3 border-t border-border flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleAcceptFix(selectedFinding.id)}
-                                  className="flex-1 py-2.5 rounded-pill bg-brand-green text-on-dark text-xs uppercase font-mono font-semibold tracking-wider hover:bg-brand-green-dark transition-all"
-                                >
-                                  Accept Fix
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setCustomEditText(selectedFinding.suggestedFix);
-                                    setIsEditingFix(true);
-                                  }}
-                                  className="px-3.5 py-2.5 rounded-pill border border-border text-xs uppercase font-mono font-semibold hover:bg-background-soft transition-all"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setShowDismissModal(true)}
-                                  className="px-3.5 py-2.5 rounded-pill border border-critical/30 text-critical text-xs uppercase font-mono font-semibold hover:bg-critical-soft transition-all"
-                                >
-                                  Dismiss
-                                </button>
-                              </div>
-                            )}
-
-                            {selectedFinding.status !== "open" && (
-                              <div className="pt-3 border-t border-border flex items-center justify-between text-xs">
-                                <span className="text-success font-mono">Resolved ({selectedFinding.status})</span>
-                                <button
-                                  onClick={() => dispatch({ type: "reopen", id: selectedFinding.id, at: new Date().toISOString() })}
-                                  className="text-brand-green hover:underline font-mono"
-                                >
-                                  Reopen Flag
-                                </button>
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <p className="text-xs text-text-muted text-center py-8">Select a finding to triage.</p>
-                        )}
-                      </div>
+                      {renderClaimsInspector(true)}
                     </div>
                   </div>
                 )}
@@ -1251,18 +2020,18 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
                 <div className="bg-surface rounded-2xl p-6 border border-border shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div>
                     <span className="text-[11px] font-mono uppercase bg-emerald-500/10 text-emerald-800 px-2.5 py-0.5 rounded-full font-semibold">
-                      Statutory Approval Gateway
+                      Brand Governance Gateway
                     </span>
                     <h2 className="font-serif italic text-2xl sm:text-3xl text-text-primary mt-1">
-                      Compliance & Legal Sign-Off
+                      Compliance &amp; Legal Sign-Off
                     </h2>
                     <p className="text-xs sm:text-sm text-text-muted mt-0.5">
-                      Verify regulatory compliance, ensure zero statutory liabilities, and issue tamper-evident approval certificates.
+                      Verify claims compliance, ensure zero unverified product liabilities, and issue tamper-evident approval certificates.
                     </p>
                   </div>
 
                   <span className="text-xs font-mono uppercase bg-surface-muted px-3 py-1.5 rounded-full border border-border text-text-secondary font-medium">
-                    SEBI Clause 7B Signatory
+                    Brand Claims Policy Signatory
                   </span>
                 </div>
 
@@ -1287,11 +2056,11 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
                         <span className="text-[11px] text-text-muted block mt-1">{isApproved ? "Sealed with SHA-256" : "None sealed"}</span>
                       </div>
                       <div className="bg-surface p-5 rounded-2xl border border-border">
-                        <span className="text-[11px] font-mono uppercase text-text-muted block mb-1">Statutory Risk</span>
+                        <span className="text-[11px] font-mono uppercase text-text-muted block mb-1">Claims Risk</span>
                         <span className={`font-serif italic text-xl ${openCount > 0 ? "text-critical" : "text-success"}`}>
                           {openCount > 0 ? "High Risk" : "Zero Liability"}
                         </span>
-                        <span className="text-[11px] text-text-muted block mt-1">SEBI compliance score</span>
+                        <span className="text-[11px] text-text-muted block mt-1">Brand compliance score</span>
                       </div>
                     </div>
 
@@ -1319,15 +2088,15 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
                         </div>
                         <div className="p-3.5 rounded-xl bg-background-soft border border-border flex items-center justify-between">
                           <span>Evidence Vault Check:</span>
-                          <span className="font-mono text-success font-semibold">Q2 Audited Factsheet Linked ✓</span>
+                          <span className="font-mono text-success font-semibold">Product_Facts.pdf Linked ✓</span>
                         </div>
                         <div className="p-3.5 rounded-xl bg-background-soft border border-border flex items-center justify-between">
                           <span>Reviewer Attribution:</span>
-                          <span className="font-mono text-text-primary">Arjun Verma (Editorial Reviewer)</span>
+                          <span className="font-mono text-text-primary">Arjun Verma (Claims Reviewer)</span>
                         </div>
                         <div className="p-3.5 rounded-xl bg-background-soft border border-border flex items-center justify-between">
                           <span>Temporal Validity:</span>
-                          <span className="font-mono text-success font-semibold">Valid through 31 Dec 2026 ✓</span>
+                          <span className="font-mono text-success font-semibold">Valid 2026 Campaign ✓</span>
                         </div>
                       </div>
 
@@ -1379,18 +2148,67 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
                 {/* APPROVER: TAB 2 - ACTIVE REVIEW DETAIL */}
                 {approverTab === "active_review" && (
                   <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border space-y-6">
-                    <h3 className="font-serif italic text-2xl text-text-primary">Statutory Inspection & Live Copy</h3>
-                    <div className="p-4 rounded-xl bg-background-soft border border-border text-base font-serif italic text-text-primary">
-                      {revisedText(state.draft, state.findings)}
+                    <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-border">
+                      <div>
+                        <h3 className="font-serif italic text-2xl text-text-primary">Statutory Inspection &amp; Campaign Assets</h3>
+                        <p className="text-xs text-text-muted mt-0.5">Comprehensive review of text copy and creative banners before compliance certification.</p>
+                      </div>
+                      <span className={`text-xs font-mono px-3 py-1 rounded-full ${openCount === 0 ? "bg-emerald-500/20 text-emerald-600 font-semibold border border-emerald-500/40" : "bg-amber-500/20 text-amber-600 font-semibold border border-amber-500/40"}`}>
+                        {openCount === 0 ? "Ready for Final Approval ✓" : `${openCount} Open Issues Pending Resolution`}
+                      </span>
                     </div>
-                    <div className="space-y-3">
-                      <span className="text-xs uppercase font-mono text-brand-green font-semibold">Finding Resolutions</span>
-                      {state.findings.map((f) => (
-                        <div key={f.id} className="p-3 bg-background-soft rounded-lg text-xs flex justify-between items-center">
-                          <span>{f.title} ({f.phrase})</span>
-                          <span className="font-mono font-semibold text-text-primary">{f.status}</span>
+
+                    {/* Dual Assets: Live Copy & Visual Banner */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="p-4 rounded-xl bg-background-soft border border-border space-y-2">
+                        <span className="text-[11px] uppercase font-mono text-brand-green font-semibold block">Live Proposal Copy:</span>
+                        <p className="text-sm font-serif italic text-text-primary leading-relaxed">
+                          {revisedText(state.draft, state.findings)}
+                        </p>
+                      </div>
+                      <div className="p-4 rounded-xl bg-background-soft border border-border flex items-center gap-4">
+                        <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-border flex-shrink-0 bg-black">
+                          <Image src={creativeMeta.fileUri} alt={creativeMeta.altText} fill className="object-contain" />
                         </div>
-                      ))}
+                        <div className="space-y-1 text-xs">
+                          <span className="font-semibold text-text-primary block">{creativeMeta.fileName}</span>
+                          <span className="text-[11px] font-mono text-text-muted block">Asset v{creativeMeta.version} · {creativeMeta.dimensions.width}×{creativeMeta.dimensions.height}</span>
+                          <span className="text-[11px] font-mono text-brand-green font-semibold block">WCAG Contrast: {creativeMeta.contrastRatio}:1 (Pass)</span>
+                          <span className="text-[11px] font-mono text-brand-green block">Logo Clearspace: 31px / 51px (Pass)</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <span className="text-xs uppercase font-mono text-brand-green font-semibold">Governance Finding Resolutions</span>
+                      <div className="divide-y divide-border/60 border border-border rounded-xl overflow-hidden bg-background-soft">
+                        {state.findings.map((f) => (
+                          <div key={f.id} className="p-3 text-xs flex justify-between items-center">
+                            <div>
+                              <span className="font-semibold text-text-primary block">{f.title}</span>
+                              <span className="text-[11px] text-text-muted">&quot;{f.phrase}&quot; · {f.ruleId || f.factId}</span>
+                            </div>
+                            <span className={`font-mono text-[11px] px-2 py-0.5 rounded-full font-semibold ${f.status === "open" ? "bg-amber-500/20 text-amber-600" : "bg-emerald-500/20 text-emerald-600"}`}>
+                              {f.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Seal & Approve Button */}
+                    <div className="pt-4 border-t border-border flex items-center justify-between">
+                      <span className="text-xs text-text-muted font-mono">
+                        {openCount === 0 ? "All statutory findings resolved. Ready to issue certificate." : `Resolve remaining ${openCount} open issue(s) to unlock certificate signature.`}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => dispatch({ type: "approve", at: new Date().toISOString() })}
+                        disabled={openCount > 0 || isApproved}
+                        className="px-6 py-2.5 rounded-pill bg-brand-green text-on-dark text-xs font-mono uppercase font-semibold tracking-wider hover:bg-brand-green-dark transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
+                      >
+                        {isApproved ? "Approved & Cryptographically Sealed ✓" : openCount > 0 ? `Approval Locked (${openCount} Open)` : "Sign & Approve Campaign →"}
+                      </button>
                     </div>
                   </div>
                 )}
@@ -1655,8 +2473,80 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
 
                 {/* ADMIN: TAB 5 - INSIGHTS */}
                 {adminTab === "insights" && (
-                  <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border space-y-4">
-                    <h3 className="font-serif italic text-2xl text-text-primary">Governance Friction &amp; Insights</h3>
+                  <div className="bg-surface rounded-2xl p-6 sm:p-8 border border-border space-y-6">
+                    <div>
+                      <h3 className="font-serif italic text-2xl text-text-primary">Governance Friction &amp; Insights</h3>
+                      <p className="text-xs text-text-muted mt-1">Adaptive telemetry tracking recurring reviewer dismissals, guideline ambiguities, and policy friction.</p>
+                    </div>
+
+                    {/* Top Recurring Governance Issues */}
+                    <div className="p-5 rounded-2xl bg-background-soft border border-border space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h4 className="font-semibold text-sm text-text-primary">Top Recurring Governance Issues (Q4 2026)</h4>
+                        <span className="text-xs font-mono text-brand-green">142 Total Triage Decisions</span>
+                      </div>
+
+                      <div className="space-y-3">
+                        {[
+                          { issue: "Unsupported performance claims", pct: 31, count: 44, color: "bg-critical" },
+                          { issue: "Expired pricing claims", pct: 24, count: 34, color: "bg-warning" },
+                          { issue: "Unapproved superlatives", pct: 19, count: 27, color: "bg-amber-600" },
+                          { issue: "Terminology inconsistencies", pct: 15, count: 21, color: "bg-indigo-600" },
+                          { issue: "Incorrect product specifications", pct: 7, count: 10, color: "bg-blue-600" },
+                          { issue: "Accessibility issues (contrast / alt-text)", pct: 4, count: 6, color: "bg-emerald-600" },
+                        ].map((item, idx) => (
+                          <div key={idx} className="space-y-1">
+                            <div className="flex justify-between text-xs">
+                              <span className="font-medium text-text-primary">{item.issue}</span>
+                              <span className="font-mono font-semibold text-text-secondary">{item.pct}% ({item.count})</span>
+                            </div>
+                            <div className="w-full bg-border/60 h-2 rounded-full overflow-hidden">
+                              <div className={`${item.color} h-full rounded-full`} style={{ width: `${item.pct}%` }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Adaptive Governance Alert: Guideline Ambiguity Detected */}
+                    <div className="p-5 rounded-2xl bg-warning-soft/20 border border-warning/40 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-mono uppercase bg-warning text-black font-semibold px-2 py-0.5 rounded-full">
+                          Guideline Ambiguity Detected
+                        </span>
+                        <span className="text-xs font-mono text-warning font-semibold">Rule R-01 (31% Reviewer Dismissal)</span>
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold text-text-primary text-sm">
+                          Current Guideline: &quot;Performance claims must be supported by approved evidence.&quot;
+                        </h4>
+                        <p className="text-xs text-text-secondary mt-1">
+                          Reviewers repeatedly disagree about comparative claims vs baseline. 31% of flags on &quot;% lighter&quot; were dismissed because reviewers lacked clear benchmark test requirements.
+                        </p>
+                      </div>
+
+                      <div className="p-3 bg-surface rounded-xl border border-border text-xs space-y-1">
+                        <span className="font-mono font-semibold text-brand-green uppercase text-[10px] block">
+                          Suggested Rule Modernisation:
+                        </span>
+                        <p className="font-serif italic text-text-primary font-medium">
+                          &quot;Comparative performance claims must include an approved comparison baseline and test methodology.&quot;
+                        </p>
+                      </div>
+
+                      <div className="flex justify-end pt-1">
+                        <button
+                          type="button"
+                          onClick={() => alert("Rule R-01 clarification published to Brand Brain v2.0!")}
+                          className="px-4 py-2 rounded-pill bg-brand-green text-on-dark text-xs font-mono uppercase font-semibold hover:bg-brand-green-dark transition-all shadow-xs"
+                        >
+                          Promote Clarification to In-Force Rule
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* All Monitored Rule Insights */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                       {RULE_INSIGHTS.map((ri) => (
                         <div key={ri.ruleId} className="p-4 rounded-xl bg-background-soft border border-border">
@@ -1874,7 +2764,7 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
                   value={dismissReason}
                   onChange={(e) => setDismissReason(e.target.value)}
                   className="w-full text-xs p-3 rounded-lg border border-border bg-background focus:outline-none focus:border-brand-green"
-                  placeholder="e.g. Approved by legal counsel for specific institutional distribution with dated CRISIL certification..."
+                  placeholder="e.g. Validated against accredited laboratory testing baseline or authorized legal review for regional distribution..."
                 />
               </div>
               <div className="flex justify-end gap-3 pt-2">
@@ -1906,36 +2796,48 @@ export function ReviewWorkspace({ onBackToLanding }: WorkspaceProps) {
                 <button onClick={() => setShowScanModal(false)} className="text-xs font-mono text-text-muted">✕</button>
               </div>
               <p className="text-xs text-text-muted">Test realistic marketing copy generated by agencies, external tools, or employees.</p>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => {
                     setScanPreset("agency");
-                    setCustomInputText("Build steady wealth with guaranteed 15% returns from Arthaa Gold Savings Fund! India's #1 fund beating 99% of peers. Hurry up, start a SIP and enjoy zero risk profits!");
+                    setCustomInputText(`NOVA AERORUN X1
+
+Built for your fastest miles.
+
+30% lighter than leading running shoes.
+
+Up to 40 km tested durability.
+
+India's #1 running shoe.
+
+Guaranteed to make every run faster.
+
+Now ₹3,999.`);
                   }}
                   className={`text-xs px-3 py-1.5 rounded-lg border font-mono ${scanPreset === "agency" ? "bg-brand-green text-on-dark border-brand-green" : "bg-background-soft text-text-secondary border-border"}`}
                 >
-                  AI Agency Copy (High Risk)
+                  NOVA AeroRun X1 (Default Campaign)
                 </button>
                 <button
                   type="button"
                   onClick={() => {
                     setScanPreset("marketing");
-                    setCustomInputText("Arthaa Gold Savings Fund now manages ₹4,200 crore with proven historical growth. Start a SIP today.");
+                    setCustomInputText("NOVA AERORUN X1 — Now ₹3,999 after 15 Nov campaign closing. Lasts 500 km on any road surface with injury-proof cushioning!");
                   }}
                   className={`text-xs px-3 py-1.5 rounded-lg border font-mono ${scanPreset === "marketing" ? "bg-brand-green text-on-dark border-brand-green" : "bg-background-soft text-text-secondary border-border"}`}
                 >
-                  Marketing Blast (Expired AUM)
+                  Expired Pricing &amp; Durability Test
                 </button>
                 <button
                   type="button"
                   onClick={() => {
                     setScanPreset("custom");
-                    setCustomInputText("");
+                    setCustomInputText("NOVA AERORUN X1. Lightweight performance footwear designed for everyday running. Up to 40 km tested durability. Now ₹3,999 during the launch campaign.");
                   }}
                   className={`text-xs px-3 py-1.5 rounded-lg border font-mono ${scanPreset === "custom" ? "bg-brand-green text-on-dark border-brand-green" : "bg-background-soft text-text-secondary border-border"}`}
                 >
-                  Freeform
+                  Approved Clean Copy
                 </button>
               </div>
               <div>

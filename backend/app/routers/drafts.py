@@ -211,10 +211,10 @@ def approve_draft(
     3. Locks draft version and generates tamper-evident approval row + audit event.
     """
     # 1. Role Check
-    if current_user.role not in ["compliance_owner", "admin"]:
+    if current_user.role not in ["compliance_owner", "approver", "admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Approval Blocked: Only Compliance Owners or Admins can give final named approval. Your current role is '{current_user.role}'."
+            detail=f"Approval Blocked: Only Compliance Approvers or Admins can give final named approval. Your current role is '{current_user.role}'."
         )
 
     version = db.query(DraftVersion).filter(DraftVersion.id == version_id).first()
@@ -276,14 +276,23 @@ def reset_demo_draft(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Resets the pre-seeded Gold Savings Fund draft (dv-draft-gold-fund-v1) back to its initial
-    unapproved state and re-runs the 4-finding governance analysis pipeline.
+    Resets the pre-seeded NOVA AeroRun X1 draft (dv-draft-nova-aerorun-v1) back to its initial
+    unapproved state and re-runs the governance analysis pipeline.
     """
     demo_text = (
-        "Invest in Arthaa Gold Savings Fund today with guaranteed 12% returns. "
-        "With an AUM of ₹4,200 crore, it is India's #1 fund for secure wealth generation."
+        "NOVA AERORUN X1\n\n"
+        "Built for your fastest miles.\n\n"
+        "30% lighter than leading running shoes.\n\n"
+        "Up to 40 km tested durability.\n\n"
+        "India's #1 running shoe.\n\n"
+        "Guaranteed to make every run faster.\n\n"
+        "Now ₹3,999."
     )
-    version = db.query(DraftVersion).filter(DraftVersion.id == "dv-draft-gold-fund-v1").first()
+    version = (
+        db.query(DraftVersion).filter(DraftVersion.id == "dv-draft-nova-aerorun-v1").first()
+        or db.query(DraftVersion).filter(DraftVersion.id == "dv-draft-gold-fund-v1").first()
+    )
+    target_id = version.id if version else "dv-draft-nova-aerorun-v1"
     if version:
         version.text = demo_text
         version.status = "in_review"
@@ -297,4 +306,4 @@ def reset_demo_draft(
             actor_name="Riya Sharma"
         )
         db.refresh(version)
-    return {"status": "reset", "draft_version_id": "dv-draft-gold-fund-v1"}
+    return {"status": "reset", "draft_version_id": target_id}

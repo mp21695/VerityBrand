@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.app.config import settings
 from backend.app.database import engine, Base
 from backend.app.models import Brand, Rule, Fact, User
-from backend.app.routers import auth, brands, rules, facts, sources, drafts, findings, audit, insights
+from backend.app.routers import auth, brands, rules, facts, sources, drafts, findings, audit, insights, creative
 from backend.app.seed_data import seed_database
 
 # Create database tables
@@ -34,6 +34,7 @@ app.include_router(drafts.router, prefix=settings.API_PREFIX)
 app.include_router(findings.router, prefix=settings.API_PREFIX)
 app.include_router(audit.router, prefix=settings.API_PREFIX)
 app.include_router(insights.router, prefix=settings.API_PREFIX)
+app.include_router(creative.router, prefix=settings.API_PREFIX)
 
 @app.on_event("startup")
 def on_startup():

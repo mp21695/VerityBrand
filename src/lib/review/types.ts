@@ -39,6 +39,8 @@ export interface Source {
   kind: "Regulation" | "Factsheet" | "Brand guideline";
   issued: string;
   hash: string;
+  fileUri?: string;
+  pages?: number;
 }
 
 export interface Resolution {
@@ -67,6 +69,35 @@ export interface Finding {
   intentNote: string;
   status: FindingStatus;
   resolution?: Resolution;
+  regionId?: string;
+  boundingBox?: { x: number; y: number; w: number; h: number };
+  isVerified?: boolean;
+}
+
+export interface OCRTextRegion {
+  id: string;
+  text: string;
+  box: { x: number; y: number; w: number; h: number }; // normalized percentages (0-100)
+  confidence: number;
+  status: "verified" | "flagged" | "neutral";
+  findingId?: string;
+  ruleId?: string;
+  evidenceRef?: string;
+}
+
+export interface CreativeAssetMetadata {
+  id: string;
+  fileName: string;
+  fileUri: string;
+  dimensions: { width: number; height: number };
+  aspectRatio: string;
+  altText: string;
+  contrastRatio: number;
+  contrastStatus: "pass" | "fail";
+  logoClearspace: { top: number; left: number; pass: boolean; minRequiredPx: number };
+  readabilityGrade: string;
+  uploadedAt: string;
+  version: number;
 }
 
 export interface Draft {
@@ -90,7 +121,9 @@ export type AuditAction =
   | "FIX_EDITED"
   | "FINDING_DISMISSED"
   | "FINDING_REOPENED"
-  | "CONTENT_APPROVED";
+  | "CONTENT_APPROVED"
+  | "CREATIVE_UPLOADED"
+  | "CREATIVE_REPLACED";
 
 export interface AuditEntry {
   id: string;

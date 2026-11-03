@@ -74,7 +74,7 @@ def get_current_user(
         if user:
             return user
         # If user not yet in DB, synthesize mock demo user
-        return User(id=x_user_id, email=f"{x_user_id}@arthaa.com", name=x_user_id.capitalize(), role=x_user_role or "reviewer")
+        return User(id=x_user_id, email=f"{x_user_id}@novafootwear.demo", name=x_user_id.capitalize(), role=x_user_role or "reviewer")
         
     # 2. Try JWT token
     if token:
@@ -88,12 +88,12 @@ def get_current_user(
         except JWTError:
             pass
 
-    # Default fallback demo user (Riya - reviewer/creator)
-    default_user = db.query(User).filter(User.email == "riya@arthaa.com").first()
+    # Default fallback demo user (Riya - creator)
+    default_user = db.query(User).filter(User.email.in_(["creator@veritybrand.demo", "riya@novafootwear.demo"])).first()
     if default_user:
         return default_user
         
-    return User(id="user_riya", email="riya@arthaa.com", name="Riya Sharma", role="creator")
+    return User(id="user_riya", email="creator@veritybrand.demo", name="Riya Sharma", role="creator")
 
 def require_role(allowed_roles: List[str]):
     def role_checker(current_user: User = Depends(get_current_user)):

@@ -22,6 +22,7 @@ export type ReviewAction =
   | { type: "dismiss"; id: string; reason: string; at: string }
   | { type: "reopen"; id: string; at: string }
   | { type: "submit_custom_draft"; draft: Draft; findings: Finding[]; at: string }
+  | { type: "replace_creative"; fileName: string; fileUri: string; at: string }
   | { type: "approve"; at: string }
   | { type: "reset"; state: ReviewState };
 
@@ -156,6 +157,32 @@ export function reviewReducer(state: ReviewState, action: ReviewAction): ReviewS
         ...state,
         findings: resolve(state, action.id, { status: "open", resolution: undefined }),
         audit: log(state, { at: action.at, action: "FINDING_REOPENED", detail: `Reopened “${f.phrase}”`, ref: f.ruleId ?? f.factId }),
+      };
+    }
+    case "replace_creative": {
+      const nextVer = state.draft.version + 1;
+      const contentHash = sha256(`creative:${action.fileName}:${nextVer}:${action.at}`);
+      const audit = makeAuditEntry(
+        state.audit[state.audit.length - 1],
+        {
+          at: action.at,
+          actor: person,
+          role: state.role,
+          action: "CREATIVE_REPLACED",
+          detail: `Uploaded new campaign creative “${action.fileName}” — incremented draft to v${nextVer}`,
+          ref: `sha256:${contentHash.slice(0, 12)}`,
+        },
+        state.audit.length
+      );
+      return {
+        ...state,
+        draft: {
+          ...state.draft,
+          version: nextVer,
+        },
+        phase: "in_review",
+        approval: undefined,
+        audit: [...state.audit, audit],
       };
     }
     case "approve": {

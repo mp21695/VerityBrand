@@ -69,12 +69,12 @@ async def upload_source(
         })
 
     # 2. Look for disclaimers or prohibitions
-    if "market risk" in raw_content.lower() or "disclaimer" in raw_content.lower():
+    if "testing" in raw_content.lower() or "disclaimer" in raw_content.lower() or "durability" in raw_content.lower():
         candidates.append({
             "type": "rule",
             "rule_type": "required_phrase",
-            "description": "Mandatory Market Risk Disclaimer extracted from regulatory guidelines",
-            "suggested_phrase": "Mutual fund investments are subject to market risks, read all scheme related documents carefully."
+            "description": "Performance Testing Disclaimer extracted from technical specifications",
+            "suggested_phrase": "Tested durability up to 40 km under standard road conditions. Individual results may vary based on terrain and athlete weight."
         })
 
     record_audit_event(

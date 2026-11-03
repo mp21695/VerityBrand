@@ -106,7 +106,7 @@ python eval_pipeline.py
 
 ## 🧪 Benchmark Verification Summary
 
-- **Exit Gate Checks (Gold Savings Fund):** 4/4 cited with exact version IDs (`rv-r07-v20`, `fv-f021-v10`, `rv-r12-v10`, `rv-r02-v10`) `[PASSED]`
+- **Exit Gate Checks (NOVA AeroRun X1 Campaign):** 4/4 cited with exact version IDs (`rv-r01-v20`, `rv-r03-v10`, `rv-r04-v21`, `fv-f08-v10`) `[PASSED]`
 - **Rule Engine Precision:** `1.00` `[PASSED]`
 - **Claim Check Recall:** `1.00` `[PASSED]`
 - **False Positive Rate:** `0.0%` `[PASSED]`

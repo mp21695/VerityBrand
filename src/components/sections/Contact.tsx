@@ -93,12 +93,12 @@ export function Contact() {
 
                   <div>
                     <label className="text-xs text-white/60 block mb-1 font-mono uppercase tracking-wider">
-                      Brand or Fund Name
+                      Brand or Enterprise Name
                     </label>
                     <input
                       type="text"
                       className="w-full bg-transparent border-b border-white/20 pb-2 text-white focus:outline-none focus:border-white transition-colors"
-                      placeholder="e.g. Arthaa Finserv"
+                      placeholder="e.g. NOVA Footwear"
                     />
                   </div>
 
