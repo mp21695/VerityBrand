@@ -102,14 +102,14 @@ export const SOURCES: Source[] = [
 ];
 
 export const FACTS: Fact[] = [
-  { id: "F-01", version: "1", label: "NOVA AeroRun X1 · Weight per shoe", value: "218 g per shoe", validFrom: "2026-10-01", validUntil: "2027-12-31", sourceId: "SRC-02", status: "current" },
-  { id: "F-02", version: "1", label: "NOVA AeroRun X1 · Upper material", value: "Engineered mesh", validFrom: "2026-10-01", validUntil: "2027-12-31", sourceId: "SRC-02", status: "current" },
-  { id: "F-03", version: "1", label: "NOVA AeroRun X1 · Midsole cushioning", value: "EVA foam (Responsive everyday cushioning)", validFrom: "2026-10-01", validUntil: "2027-12-31", sourceId: "SRC-02", status: "current" },
-  { id: "F-04", version: "1", label: "NOVA AeroRun X1 · Outsole", value: "Rubber traction outsole", validFrom: "2026-10-01", validUntil: "2027-12-31", sourceId: "SRC-02", status: "current" },
-  { id: "F-05", version: "1", label: "NOVA AeroRun X1 · Tested durability", value: "Up to 40 km tested durability", validFrom: "2026-10-01", validUntil: "2027-12-31", sourceId: "SRC-02", status: "current" },
-  { id: "F-06", version: "1", label: "NOVA AeroRun X1 · Available sizes", value: "6, 7, 8, 9, 10, 11", validFrom: "2026-10-01", validUntil: "2027-12-31", sourceId: "SRC-02", status: "current" },
-  { id: "F-07", version: "1", label: "NOVA AeroRun X1 · Standard price", value: "₹4,499", validFrom: "2026-10-01", validUntil: "2027-12-31", sourceId: "SRC-03", status: "current" },
-  { id: "F-08", version: "1", label: "NOVA AeroRun X1 · Launch campaign price", value: "₹3,999", validFrom: "2026-11-01", validUntil: "2026-11-15", sourceId: "SRC-03", status: "current" },
+  { id: "F-01", version: "1.0", label: "NOVA AeroRun X1 · Weight per shoe", value: "218 g per shoe", validFrom: "2026-10-01", validUntil: "2027-12-31", sourceId: "SRC-02", sourceDoc: "02_NOVA_Product_Facts.pdf", sourceLocation: "Table 1, Row 2", timestamp: "2026-10-15T10:00:00+05:30", status: "current" },
+  { id: "F-02", version: "1.0", label: "NOVA AeroRun X1 · Upper material", value: "Engineered mesh", validFrom: "2026-10-01", validUntil: "2027-12-31", sourceId: "SRC-02", sourceDoc: "02_NOVA_Product_Facts.pdf", sourceLocation: "Table 1, Row 3", timestamp: "2026-10-15T10:00:00+05:30", status: "current" },
+  { id: "F-03", version: "1.0", label: "NOVA AeroRun X1 · Midsole cushioning", value: "EVA foam (Responsive everyday cushioning)", validFrom: "2026-10-01", validUntil: "2027-12-31", sourceId: "SRC-02", sourceDoc: "02_NOVA_Product_Facts.pdf", sourceLocation: "Table 1, Row 4", timestamp: "2026-10-15T10:00:00+05:30", status: "current" },
+  { id: "F-04", version: "1.0", label: "NOVA AeroRun X1 · Outsole", value: "Rubber traction outsole", validFrom: "2026-10-01", validUntil: "2027-12-31", sourceId: "SRC-02", sourceDoc: "02_NOVA_Product_Facts.pdf", sourceLocation: "Table 1, Row 5", timestamp: "2026-10-15T10:00:00+05:30", status: "current" },
+  { id: "F-05", version: "1.0", label: "NOVA AeroRun X1 · Tested durability", value: "Up to 40 km tested durability", validFrom: "2026-10-01", validUntil: "2027-12-31", sourceId: "SRC-02", sourceDoc: "02_NOVA_Product_Facts.pdf", sourceLocation: "Table 2, Row 1 (PT-2026-041)", timestamp: "2026-10-15T10:00:00+05:30", status: "current" },
+  { id: "F-06", version: "1.0", label: "NOVA AeroRun X1 · Available sizes", value: "6, 7, 8, 9, 10, 11", validFrom: "2026-10-01", validUntil: "2027-12-31", sourceId: "SRC-02", sourceDoc: "02_NOVA_Product_Facts.pdf", sourceLocation: "Table 1, Row 6", timestamp: "2026-10-15T10:00:00+05:30", status: "current" },
+  { id: "F-07", version: "1.0", label: "NOVA AeroRun X1 · Standard price", value: "₹4,499", validFrom: "2026-10-01", validUntil: "2027-12-31", sourceId: "SRC-03", sourceDoc: "03_NOVA_Pricing_Master.pdf", sourceLocation: "Table 1, Row 1", timestamp: "2026-10-25T09:30:00+05:30", status: "current" },
+  { id: "F-08", version: "1.0", label: "NOVA AeroRun X1 · Launch campaign price", value: "₹3,999", validFrom: "2026-11-01", validUntil: "2026-11-15", sourceId: "SRC-03", sourceDoc: "03_NOVA_Pricing_Master.pdf", sourceLocation: "Table 1, Row 1", timestamp: "2026-10-25T09:30:00+05:30", status: "current" },
 ];
 
 export const DEMO_FINDINGS: Finding[] = [
@@ -185,7 +185,7 @@ export const DEMO_FINDINGS: Finding[] = [
     confidenceNote: "Temporal ledger check: currently inside valid promotional window",
     suggestedFix: "Now ₹3,999 (Launch offer valid 1–15 Nov 2026)",
     intentNote: "Clarifies promotional validity window to prevent post-expiry consumer disputes.",
-    status: "open",
+    status: "accepted",
     regionId: "ocr-8",
     boundingBox: { x: 4, y: 77, w: 34, h: 9 },
     isVerified: true,

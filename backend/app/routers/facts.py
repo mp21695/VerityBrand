@@ -112,3 +112,79 @@ def create_or_version_fact(
         db.commit()
         db.refresh(new_fact)
         return new_fact
+
+
+@router.post("/facts/{fact_id}/expire")
+def expire_fact(fact_id: str, db: Session = Depends(get_db)):
+    """
+    Simulates temporal expiration of a fact (e.g. promotional pricing window end).
+    Identifies dependent drafts, marks them re_review_required, and records audit trail.
+    """
+    fact = db.query(Fact).filter(Fact.id == fact_id).first()
+    now = datetime.datetime.utcnow()
+    past = now - datetime.timedelta(days=1)
+    if fact and fact.versions:
+        fact.versions[0].valid_until = past
+
+    from backend.app.models import Draft, DraftVersion
+    dependent_drafts = db.query(Draft).all()
+    affected_draft_ids = []
+    for d in dependent_drafts:
+        latest_ver = db.query(DraftVersion).filter(DraftVersion.draft_id == d.id).order_by(DraftVersion.version_number.desc()).first()
+        if latest_ver and ("3,999" in latest_ver.text or "3999" in latest_ver.text or (fact and fact.key in latest_ver.text)):
+            latest_ver.status = "re_review_required"
+            affected_draft_ids.append(d.id)
+
+    record_audit_event(
+        db=db,
+        actor_id="temporal-radar",
+        actor_name="Temporal Radar Service",
+        verb="fact_expired",
+        object_type="fact",
+        object_id=fact_id,
+        payload={
+            "fact_id": fact_id,
+            "expired_at": str(now),
+            "affected_draft_ids": affected_draft_ids,
+            "reason": "Pricing fact validity ended. Standard retail price now applies."
+        }
+    )
+    db.commit()
+    return {
+        "status": "expired",
+        "fact_id": fact_id,
+        "affected_campaigns": affected_draft_ids,
+        "re_review_required": True
+    }
+
+
+@router.post("/facts/{fact_id}/restore")
+def restore_fact(fact_id: str, db: Session = Depends(get_db)):
+    """
+    Restores validity of a fact (e.g. extending promotional offer).
+    """
+    fact = db.query(Fact).filter(Fact.id == fact_id).first()
+    future = datetime.datetime.utcnow() + datetime.timedelta(days=60)
+    if fact and fact.versions:
+        fact.versions[0].valid_until = future
+
+    record_audit_event(
+        db=db,
+        actor_id="governance-admin",
+        actor_name="Governance Administrator",
+        verb="fact_restored",
+        object_type="fact",
+        object_id=fact_id,
+        payload={
+            "fact_id": fact_id,
+            "valid_until": str(future),
+            "reason": "Promotional validity extended"
+        }
+    )
+    db.commit()
+    return {
+        "status": "active",
+        "fact_id": fact_id,
+        "valid_until": str(future)
+    }
+

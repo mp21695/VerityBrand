@@ -30,7 +30,10 @@ export interface Fact {
   validFrom: string;
   validUntil: string;
   sourceId: string;
+  sourceDoc?: string;
+  sourceLocation?: string;
   status: "current" | "expired";
+  timestamp?: string;
 }
 
 export interface Source {
@@ -115,6 +118,13 @@ export interface Draft {
 export type AuditAction =
   | "RULE_PUBLISHED"
   | "FACT_VERSIONED"
+  | "FACT_EXPIRED"
+  | "CLAIM_REVIEW_TRIGGERED"
+  | "AUTO_REANALYSIS_COMPLETED"
+  | "SUGGESTED_FIX_APPLIED"
+  | "CAMPAIGN_VERSION_CREATED"
+  | "APPROVAL_LOCKED"
+  | "APPROVAL_UNLOCKED"
   | "DRAFT_SUBMITTED"
   | "ANALYSIS_COMPLETED"
   | "FIX_ACCEPTED"
@@ -124,6 +134,34 @@ export type AuditAction =
   | "CONTENT_APPROVED"
   | "CREATIVE_UPLOADED"
   | "CREATIVE_REPLACED";
+
+export interface CampaignVersionSnapshot {
+  version: number;
+  label: string;
+  text: string;
+  creativeUri: string;
+  creativeVersion: number;
+  author: string;
+  timestamp: string;
+  changedText?: string;
+  originalText?: string;
+  reason?: string;
+  findingsCount: number;
+  openCount: number;
+  findings: Finding[];
+  contentHash: string;
+}
+
+export interface StaleAlert {
+  active: boolean;
+  factId: string;
+  factLabel: string;
+  reason: string;
+  triggeredAt: string;
+  affectedClaims: string[];
+  affectedCampaign: string;
+  status: "re_review_required" | "resolved";
+}
 
 export interface AuditEntry {
   id: string;
@@ -169,7 +207,7 @@ export interface GlossaryTerm {
   ruleId: string;
 }
 
-export type ReviewPhase = "submitted" | "analysing" | "in_review" | "approved";
+export type ReviewPhase = "submitted" | "analysing" | "in_review" | "approved" | "re_review_required";
 
 export interface QueueItem {
   id: string;
